@@ -103,17 +103,23 @@ where productid < 10
 ```
 
 
-Jaka jest różnica? Czego dotyczy warunek w każdym z przypadków? Napisz polecenie równoważne 
-- 1) z wykorzystaniem funkcji okna. Napisz polecenie równoważne 
-- 2) z wykorzystaniem podzapytania
+Jaka jest różnica? Czego dotyczy warunek w każdym z przypadków?
 
+```
+Funkcja okna wykonuje się po klauzuli where, dlatego zwraca średnią cenę produktów jedynie z id mniejszym niż 10. Jeżeli użyjemy podzaptania, to średnia zostanie policzona z całej tabeli, a następnie zostaną wyświetlone produkty z id mniejszym niż 10.
+```
+
+Napisz polecenie równoważne 
+- 1) z wykorzystaniem funkcji okna. Napisz polecenie równoważne 
 ```sql
-Funkcja okna wykonuje się po klauzuli where, dlatego zwraca 
-1. select top 9 p.productid, p.ProductName, p.unitprice,
+select top 9 p.productid, p.ProductName, p.unitprice,
       avg(unitprice) over () as avgprice
 from products p
 order by ProductID
-2. select p.productid, p.ProductName, p.unitprice,
+```
+- 2) z wykorzystaniem podzapytania
+```sql
+select p.productid, p.ProductName, p.unitprice,
        (select avg(unitprice) from products where productid < 10) as avgprice
 from products p
 where productid < 10
@@ -141,17 +147,21 @@ W DataGrip użyj opcji Explain Plan/Explain Analyze
 ![w:700](_img/window-3.png)
 
 
-```sql
 podzapytanie - 88ms - 115ms
+```sql
 select p.ProductID, p.ProductName, p.UnitPrice,
-       (select avg(UnitPrice) from products) as avgprice
+    (select avg(UnitPrice) from products) as avgprice
 from products p
+```
 join - 110ms - 156ms
+```sql
 select p.ProductID, p.ProductName, p.UnitPrice,
-       (select avg(UnitPrice) from products) as avgprice
+    (select avg(UnitPrice) from products) as avgprice
 from products p
 cross join (select avg(UnitPrice) as avgprice from products) as prod
+```
 okna - 82ms - 112ms
+```sql
 select p.ProductID, p.ProductName, p.UnitPrice, avg(unitprice) over () as avgprice
 from products p;
 ```
@@ -182,13 +192,17 @@ Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 podzapytanie -79ms
 select p.ProductID, p.ProductName, p.UnitPrice, (select avg(unitprice) from Products where p.CategoryID = CategoryID) as avgprice
 from Products p where p.UnitPrice > (select avg(unitprice) from Products where p.CategoryID = CategoryID)
+```
 join - 74ms
+```sql
 SELECT p.productid, p.ProductName, p.unitprice, avgprice
 FROM products p
-         LEFT JOIN (SELECT CategoryID, avg(unitprice) AS avgprice FROM products group by CategoryID) AS prod
-                   ON prod.CategoryID = p.CategoryID
+LEFT JOIN (SELECT CategoryID, avg(unitprice) AS avgprice FROM products group by CategoryID) AS prod
+ON prod.CategoryID = p.CategoryID
 WHERE p.UnitPrice > avgprice
+```
 okna - 82ms
+```sql
 with t as (
     select p.ProductID, p.ProductName, p.UnitPrice, avg(unitprice) over (partition by CategoryID) as avgprice from products p
 ) select * from t where t.UnitPrice > t.avgprice
@@ -320,10 +334,44 @@ Napisz polecenie z wykorzystaniem podzapytania, join'a oraz funkcji okna. Porów
 
 Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
-
+- Podzapytanie
 ```sql
-Zapytanie przy użyciu podzapytań MS SQL Server - 1s455ms
-Zapytanie przy użyciu Postgresa - 73ms
+select p.id, p.ProductID, p.ProductName, p.UnitPrice,
+       (select avg(UnitPrice) from product_history) as avgprice
+from product_history p
+```
+![w:700](_img/screen1.png)
+
+- join
+```sql
+select p.id, p.ProductID, p.ProductName, p.UnitPrice,
+    (select avg(UnitPrice) from product_history) as avgprice
+from product_history p
+    cross join (select avg(UnitPrice) as avgprice from product_history) as prod
+```
+![w:700](_img/screen2.png)
+
+- okna
+```sql
+select p.id, p.ProductID, p.ProductName, p.UnitPrice, avg(unitprice) over () as avgprice
+from product_history p;
+```
+![w:700](_img/screen3.png)
+
+```
+Zapytanie przy użyciu podzapytań MS SQL Server - 1s911ms
+Zapytanie przy użyciu podzapytań Postgresa - 120ms
+Zapytanie przy użyciu podzapytań SQLite - 72ms
+
+Zapytanie przy użyciu join MS SQL Server - 1s976ms
+Zapytanie przy użyciu join Postgresa - 1s650ms
+Zapytanie przy użyciu join SQLite - 776ms
+
+Zapytanie przy użyciu funkcji okna MS SQL Server - 1s833ms
+Zapytanie przy użyciu funkcji okna Postgresa - 1s429ms
+Zapytanie przy użyciu funkcji okna SQLite - 1s755ms
+
+Podobnie jak w poprzednich zadaniach, widać zachowaną regułę, według której MS SQL Server radzi sobie najwolniej (szczególnie widoczne jest to w przypadku podzapytań), a SQLite najlepiej. Warto jednak zauważyć, że w przypadku funkcji okna, niezależnie od zastosowanego SZBD uzyskaliśmy prawie zawsze czas ok. 1.5s czyli znacznie wolniej niż w przypadku podzapytań dla Postgrea i SQLite'a. Może to oznaczać, że używanie funkcji okna nie sprawdzi się w przypadku danych, których nie grupujemy.
 ```
 
 
@@ -346,9 +394,49 @@ Porównaj czasy oraz plany wykonania zapytań.
 
 Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
-
+- podzapytania, na postgresie trzeba zamienić year na extract(year from ...)
 ```sql
---- wyniki ...
+select p.id, p.ProductID, p.ProductName, p.UnitPrice,
+    (select avg(UnitPrice) from product_history where CategoryID = p.CategoryID) as avgprice,
+    (select sum(UnitPrice) from product_history where CategoryID = p.CategoryID) as sumprice,
+    (select avg(UnitPrice) from product_history where ProductID = p.ProductID and year(date) = year(p.date)) as yearavgprice
+from product_history p
+```
+- join
+```sql
+select p.id, p.ProductID, p.ProductName, p.UnitPrice,
+    avg(p2.UnitPrice) as avgprice,
+    sum(p2.UnitPrice)as avgprice,
+    avg(p3.UnitPrice) as avgYear
+from product_history p
+    join product_history p2 on p2.CategoryID = p.CategoryID
+    join product_history p3 on p3.productid = p.productid and year(p.date) = year(p3.date)
+group by p.id, p.ProductID, p.ProductName, p.UnitPrice
+```
+- okna
+```sql
+select p.id, p.ProductID, p.ProductName, p.UnitPrice,
+    avg(unitprice) over (partition by CategoryID) as avgprice,
+    sum(unitprice) over (partition by CategoryID) as sumprice,
+    avg(unitprice) over (partition by ProductID, year(p.date)) as yearavgprice
+from product_history p
+```
+![w:700](_img/screen7-3.png)
+
+```
+Zapytanie przy użyciu podzapytań MS SQL Server - 3s226ms
+Zapytanie przy użyciu podzapytań Postgresa - nie dało się wykonać w sensownym czasie
+Zapytanie przy użyciu podzapytań SQLite - nie dało się wykonać w sensownym czasie
+
+Zapytanie przy użyciu joina nie dało się przetworzyć na żadnym systemie 
+
+Zapytanie przy użyciu funkcji okna MS SQL Server - 3s331ms
+Zapytanie przy użyciu funkcji okna Postgresa - 7s82ms
+Zapytanie przy użyciu funkcji okna SQLite - 5s453ms
+
+Dzięki powyższym wynikom jesteśmy w statnie zauważyć przewagę systemu MS SQL Server nad innymi. Pomimo, że system ten sprawdzał się gorzej w przypadku mniej złożonych zapytań, tak w tym przypadku jako jedyny poradził sobie np. z podzapytaniami. Sprawdzał się on też najszybciej ze wszystkich systemów.
+Funkcje okna, choć trochę wolniejsze od podzapytań, okazały się najbardziej niezawodnym, a przy tym łatwym do napisania sposobem.
+Operacja z joinem jest już zbyt skomplikowana, aby za jej pomocą przetwarzać zapytania.
 ```
 
 ---
