@@ -455,18 +455,31 @@ from products;
 ```
 
 ```sql
---- wyniki ...
+row_number - numer wiersza
+rank - ranking elementów, z uwzględnieniem remisów (1, 2, 2, 4)
+dense_rank - raknking elementów, bez uwzględniania remisów (1, 2, 2, 3)
 ```
-
 
 Zadanie
 
 Spróbuj uzyskać ten sam wynik bez użycia funkcji okna
 
 ```sql
---- wyniki ...
+select productid, productname, unitprice, categoryid,
+       (select count(*) from products p1
+            where p.CategoryID = p1.CategoryID
+              and (p.UnitPrice < p1.UnitPrice or (p.UnitPrice = p1.UnitPrice and p.ProductID > p1.ProductID)))
+           + 1 as myrowno,
+       (select count(*) from products p1
+            where p1.CategoryID = p.CategoryID
+              and p.UnitPrice < p1.UnitPrice)
+           + 1 as myrankprice,
+       (select count(*) from
+            (select distinct UnitPrice from products p1 where p1.CategoryID = p.CategoryID and p.UnitPrice < p1.UnitPrice) as less)
+           + 1 as mydenserankprice
+from products p order by CategoryID, UnitPrice desc, ProductID;
 ```
-
+![w:700](_img/screen8.png)
 
 ---
 # Zadanie 9
@@ -484,15 +497,40 @@ Dla każdego produktu, podaj 4 najwyższe ceny tego produktu w danym roku. Zbió
 Uporządkuj wynik wg roku, nr produktu, pozycji w rankingu
 
 ```sql
---- wyniki ...
+with t as (
+    select year(ph.Date) as year, p.ProductID, p.ProductName, ph.UnitPrice,
+        rank() over (partition by p.ProductID, year(ph.Date)
+            order by ph.UnitPrice desc) as rank
+    from Products p
+        join product_history ph on ph.ProductID = p.ProductID
+)
+select * from t
+where rank <= 4
+order by Year, ProductID, rank;
 ```
 
+![w:700](_img/screen9-1.png)
 
 Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 
 ```sql
---- wyniki ...
+with t as (
+    select year(ph.Date) as year, p.ProductID, p.ProductName, ph.UnitPrice,
+           (select top 4 count (*) + 1
+            from product_history ph1
+            where p.ProductID = ph1.productid and year(ph.date) = year(ph1.date) and ph1.unitprice > ph.unitprice
+            ) as rank
+    from Products p
+             join product_history ph on ph.ProductID = p.ProductID
+)
+select * from t
+where rank <= 4
+order by Year, ProductID, rank;
+```
+
+```
+Po 30 krotnym :) zmniejszeniu tabeli wynikowej udało nam się uzyskać wynik 6s264ms dla MS SQL Servera (dla pozostałych SZBD nie udało się uzyskać wyniku nawet wtedy). Funkcje okna poradziy sobie z podanym zadaniem w 136ms. Oprócz tego rozwiązanie z funkcjami okna jest zdecydowanie dużo prostsze do napisania.
 ```
 
 ---
@@ -524,8 +562,10 @@ where productid = 1 and year(date) = 2022
 order by date;
 ```
 
-```sql
--- wyniki ...
+```
+Lag pokazuje wartość poprzedniego rekordu, lead następnego.
+
+W drugim zapytaniu where zadziała dopiero po wykonaniu with i dlatego będziemy mieli wartość dla pierwszego produktu, w przypadku pierwszego zapytania where wykona się od razu i pierwszy rekord będzie miał wartość null. Obydwa zapytania zwracają null dla ostatniego rekordu.
 ```
 
 
@@ -534,7 +574,25 @@ Zadanie
 Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
--- wyniki ...
+select ph.productid, ph.productname, ph.categoryid, ph.date, ph.unitprice,
+    (select ph1.unitprice
+    from product_history ph1
+    where ph1.productid = ph.productid and ph1.date = dateadd(day, -1, ph.date)
+    ) as previousprodprice,
+    (select ph1.unitprice
+     from product_history ph1
+     where ph1.productid = ph.productid and ph1.date = dateadd(day, 1, ph.date)
+     ) as nextprodprice
+from product_history ph
+where ph.productid = 1 and year(ph.date) = 2022
+order by ph.date;
+```
+
+![w:700](_img/screen10.png)
+
+```
+Zapytanie z funkcją okna wykonywało się 276ms, a zapytanie z selectem 9s217ms. Dodatkowo, wykorzystaliśmy tutaj fakt, że w kolumnie date znajdują się daty co 1 dzień, jeżeli którejś daty by brakowało to zapytanie nie zadziałałoby. Rozwiązaniem mogłoby być użycie funkcji okna row_number (ale jeżeli zakładamy że ich nie używamy, to musielibyśmy zrobić selecta z countem, co prawdopodobnie sprawiłoby że nie uzyskalibyśmy wyników w sensownym czasie)
+Dla Postgresa i SQLitea zapytanie się nie wykonało nawet na zmniejszonym zbiorze wynikowym.
 ```
 
 ---
