@@ -780,6 +780,8 @@ where OrderRank = 1;
 Wykorzystujemy funkcję okna ROW_NUMBER() do przypisania kolejności zamówień dla każdego klienta na podstawie daty zamówienia, sortując malejąco po dacie zamówienia, a następnie wybieramy tylko te zamówienia, które mają wartość 1 w kolumnie OrderRank, co oznacza ostatnie zamówienie dla każdego klienta.
 ```
 
+![w:700](_img/ex15_2.png)
+
 Punktacja
 
 |         |     |
