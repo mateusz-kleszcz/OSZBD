@@ -553,7 +553,20 @@ Zbiór wynikowy powinien zawierać:
 - wartość poprzedniego zamówienia danego klienta.
 
 ```sql
--- wyniki ...
+select c.ContactName, Orders.OrderID, Orders.OrderDate, order_value.value
+from Orders
+left join
+    ( select CustomerID, ContactName from Customers) as c
+on Orders.CustomerID = c.CustomerID
+left join
+    (select OrderID, order_value + Freight as value
+        from (select od.OrderID, sum(UnitPrice * Quantity) as order_value, o.Freight
+                from [Order Details] od
+                left join
+                    (select OrderID, Freight from Orders) as o on o.OrderID = od.OrderID
+    group by od.OrderID, o.Freight) as p) as order_value
+on Orders.OrderID = order_value.OrderID
+
 ```
 
 
