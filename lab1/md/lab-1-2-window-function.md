@@ -554,28 +554,30 @@ Zbiór wynikowy powinien zawierać:
 
 ```sql
 with t as(
-select C.ContactName, O.OrderID, O.OrderDate, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue,
-       lag(O.OrderID) over ( partition by C.CustomerID order by O.OrderDate) as PrevOrderID,
-       lag(O.OrderDate) over ( partition by C.CustomerID order by O.OrderDate) as PrevOrderDate
-from Orders O
-join [Order Details] OD
-on O.OrderID = OD.OrderID
-join Customers C
-on O.CustomerID = C.CustomerID
-group by O.OrderID, O.Freight, O.OrderDate, C.CustomerID, C.ContactName)
-select *
+    select C.ContactName, O.OrderID, O.OrderDate, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue,
+           lag(O.OrderID) over ( partition by C.CustomerID order by O.OrderDate) as PrevOrderID,
+           lag(O.OrderDate) over ( partition by C.CustomerID order by O.OrderDate) as PrevOrderDate
+    from Orders O
+    join [Order Details] OD
+    on O.OrderID = OD.OrderID
+    join Customers C
+    on O.CustomerID = C.CustomerID
+    group by O.OrderID, O.Freight, O.OrderDate, C.CustomerID, C.ContactName)
+select t.*, PD.OrderValue
 from t
-join (select O.OrderID, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue
-      from Orders O
-      join dbo.[Order Details] OD
-      on O.OrderID = OD.OrderID
-      group by O.OrderID, O.Freight) as PD
-on t.PrevOrderID = PD.OrderID
+        left join (select O.OrderID, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue
+                from Orders O
+                join dbo.[Order Details] OD
+                on O.OrderID = OD.OrderID
+                group by O.OrderID, O.Freight) as PD
+        on t.PrevOrderID = PD.OrderID
 ```
 
-### Wnioski:
-#TODO
+![w:700](_img/ex11_result.png)
 
+`Do uzyskania dostęp do danych o poprzednim zamówieniu świetnie nadaje się funkcja lag()`
+
+---
 # Zadanie 12 - obserwacja
 
 Funkcje `first_value()`, `last_value()`
@@ -591,8 +593,9 @@ order by unitprice desc) last
 from products  
 order by categoryid, unitprice desc;
 ```
-### Wnioski:
-Można zauważyć że zapytanie w tej formie nie pokazuje poprawnie najtańszego produktu w danej kategorii. Wynika to z faktu że funkcje `last_value()`, oraz `first_value()` domyślnie wykorzystują zakres **RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW**, co w naszym przypadku powoduje niepoprawne wyświetlanie produktu najtańszego w danej kategorii. Poniżej poprawiona wersja zapytania:
+```
+Można zauważyć że zapytanie w tej formie nie pokazuje poprawnie najtańszego produktu w danej kategorii. Wynika to z faktu że funkcje last_value(), oraz first_value() domyślnie wykorzystują zakres RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, co w naszym przypadku powoduje niepoprawne wyświetlanie produktu najtańszego w danej kategorii. Poniżej poprawiona wersja zapytania:
+```
 
 ```sql
 select productid, productname, unitprice, categoryid,
@@ -616,8 +619,17 @@ from products p
 order by categoryid, unitprice desc;
 ```
 
-### Wnioski:
-#TODO
+![w:700](_img/ex12_no_window_result.png)
+`Plan zapytania z funkcją okna na serwerze PostgreSql`
+![w:700](_img/ex12_psql_window_plan.png)
+`Plan zapytania z funkcją okna na serwerze MS SQL`
+![w:700](_img/ex12_sql_window_plan.png)
+`Plan zapytania bez funkcji okna na serwerze MS SQL`
+![w:700](_img/ex12_psql_window_plan.png)
+
+```
+Porównując plany zapytań ciężko dojść do wniosku które zapytanie jest bardziej optymalne. Różnica zauważalna jest podczas porównania kosztów zapytań w wersji z funkcją okna jest to 0.0173 a w wersji bez funkcji okna 0.254. Widać więc że wykorzystanie funkcji okna jest dobrym wyborem, zmniejszającym koszt wykonania zapytania.
+```
 
 ---
 # Zadanie 13
@@ -641,8 +653,22 @@ Zbiór wynikowy powinien zawierać:
 	- wartość tego zamówienia
 
 ```sql
---- wyniki ...
+with t as
+        (select C.CustomerID, O.OrderID, O.OrderDate, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue
+        from Orders O
+        join [Order Details] OD
+        on O.OrderID = OD.OrderID
+        join Customers C
+        on O.CustomerID = C.CustomerID
+        group by C.CustomerID, O.OrderID, O.OrderDate, O.Freight)
+select *,
+       first_value(concat(t.OrderID, ' ', t.OrderDate, ' ', t.OrderValue)) over (partition by t.CustomerID, month(t.OrderDate) order by t.OrderValue) as MinValueOrder,
+       first_value(concat(t.OrderID, ' ', t.OrderDate, ' ', t.OrderValue)) over (partition by t.CustomerID, month(t.OrderDate) order by t.OrderValue desc) as MaxValueOrder
+from t
 ```
+![w:700](_img/ex13_result.png)
+
+`W celu skrócenia zapytania dwukrotnie wykorzystano funkcję first_value() zmieniając kolejność segregowanie`
 
 ---
 # Zadanie 14
@@ -659,14 +685,49 @@ Zbiór wynikowy powinien zawierać:
 - wartość sprzedaży produktu narastające od początku miesiąca
 
 ```sql
--- wyniki ...
+with t as 
+        (select PH.id, PH.productid, PH.date, PH.value
+        from product_history PH)
+select t.*, sum(t.value) 
+                over(partition by t.productid, year(t.date), month(t.date) order by t.date) as ascVal
+from t
 ```
+
+![w:700](_img/ex14_window_result.png)
 
 Spróbuj wykonać zadanie bez użycia funkcji okna. Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
--- wyniki ...
+select PH.id, PH.productid, PH.date, PH.value, 
+    (select sum(PH2.value) 
+    from product_history PH2 
+    where PH2.date <= PH.date 
+        and  PH2.productid = PH.productid 
+        and year(PH2.date) = year(PH.date) 
+        and month(PH2.date) = month(PH.date))
+from product_history PH
+order by PH.productid, PH.date
 ```
+
+```
+Zapytanie bez funkcji okna wykonuje się w znacznie dłuższym czasie. Różnicę widać w koszcie wykonania zapytań, 8112 bez wykorzystania funkcji okna oraz 26 wykorzystując funkcję okna. Pokazuje to przydatność tego mechanizmu. 
+```
+
+![w:700](_img/ex14_no_window_result.png)
+
+```
+Porównując plany zapytań można dojść do dwóch wniosków.
+- Plany nie różnią się znacznie między różnymi serwerami.
+- Zapytania z funkcją okna mają znacznie prostrzy plan, w porównaniu do zapytań bez funkcji okna.
+
+Czas wykonania zapytań był najkrótszy na serwerze MS SQL. Dodatkowo 
+```
+`Plan zapytania z funkcją okna na serwerze PostgreSql`
+![w:700](_img/ex14_psql_window_plan.png)
+`Plan zapytania z funkcją okna na serwerze MS SQL`
+![w:700](_img/ex14_sql_window_plan.png)
+`Plan zapytania bez funkcji okna na serwerze MS SQL`
+![w:700](_img/ex14_sql_no_window_plan.png)
 
 ---
 # Zadanie 15
@@ -674,9 +735,50 @@ Spróbuj wykonać zadanie bez użycia funkcji okna. Spróbuj uzyskać ten sam wy
 Wykonaj kilka "własnych" przykładowych analiz. Czy są jeszcze jakieś ciekawe/przydatne funkcje okna (z których nie korzystałeś w ćwiczeniu)? Spróbuj ich użyć w zaprezentowanych przykładach.
 
 ```sql
--- wyniki ...
+select
+    c.contactname, o.ORDERID, o.ORDERDATE,
+    (SUM(od.unitprice * od.quantity * (1 - od.discount)) + o.freight) as OrderValue,
+    NTILE(4) over (PARTITION BY YEAR(o.ORDERDATE), MONTH(o.ORDERDATE) ORDER BY (SUM(od.unitprice * od.quantity * (1 - od.discount)) + o.freight)) as Quartile
+from
+    orders o
+        join
+    customers c on o.CUSTOMERID = c.CUSTOMERID
+        join
+    [order details] od on o.ORDERID = od.ORDERID
+group by
+    o.ORDERID, o.ORDERDATE, o.FREIGHT, c.CONTACTNAME
 ```
 
+```
+Zapytanie to zwraca nazwę klienta, numer zamówienia, datę zamówienia, wartość zamówienia oraz kwartyl, w którym znajduje się wartość zamówienia dla danego miesiąca
+```
+![w:700](_img/ex15_1.png)
+
+
+```sql
+with t as (
+    select
+        o.CustomerID,
+        c.ContactName,
+        o.OrderID,
+        (sum(od.UnitPrice * od.Quantity * (1 - od.Discount)) + o.Freight) as OrderValue,
+        row_number() over (partition by o.CustomerID order by o.OrderDate desc ) as OrderRank
+    from
+        orders o
+    join
+        [order details] od on o.OrderID = od.OrderID
+    join Customers c on o.CustomerID = c.CustomerID
+    group by
+        o.CustomerID, c.ContactName, o.OrderID, o.Freight, o.OrderDate
+)
+select t.CustomerID, t.ContactName, t.OrderID, t.OrderValue
+from t
+where OrderRank = 1;
+```
+
+```
+Wykorzystujemy funkcję okna ROW_NUMBER() do przypisania kolejności zamówień dla każdego klienta na podstawie daty zamówienia, sortując malejąco po dacie zamówienia, a następnie wybieramy tylko te zamówienia, które mają wartość 1 w kolumnie OrderRank, co oznacza ostatnie zamówienie dla każdego klienta.
+```
 
 Punktacja
 
