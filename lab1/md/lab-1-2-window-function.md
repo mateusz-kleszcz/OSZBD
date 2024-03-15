@@ -515,7 +515,22 @@ Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czas
 
 
 ```sql
---- wyniki ...
+with t as (
+    select year(ph.Date) as year, p.ProductID, p.ProductName, ph.UnitPrice,
+           (select top 4 count (*) + 1
+            from product_history ph1
+            where p.ProductID = ph1.productid and year(ph.date) = year(ph1.date) and ph1.unitprice > ph.unitprice
+            ) as rank
+    from Products p
+             join product_history ph on ph.ProductID = p.ProductID
+)
+select * from t
+where rank <= 4
+order by Year, ProductID, rank;
+```
+
+```
+Po 30 krotnym :) zmniejszeniu tabeli wynikowej udało nam się uzyskać wynik 6s264ms dla MS SQL Servera (dla pozostałych SZBD nie udało się uzyskać wyniku nawet wtedy). Funkcje okna poradziy sobie z podanym zadaniem w 136ms. Oprócz tego rozwiązanie z funkcjami okna jest zdecydowanie dużo prostsze do napisania.
 ```
 
 ---
