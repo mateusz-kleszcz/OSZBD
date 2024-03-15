@@ -553,24 +553,29 @@ Zbiór wynikowy powinien zawierać:
 - wartość poprzedniego zamówienia danego klienta.
 
 ```sql
-select c.ContactName, Orders.OrderID, Orders.OrderDate, order_value.value
-from Orders
-left join
-    ( select CustomerID, ContactName from Customers) as c
-on Orders.CustomerID = c.CustomerID
-left join
-    (select OrderID, order_value + Freight as value
-        from (select od.OrderID, sum(UnitPrice * Quantity) as order_value, o.Freight
-                from [Order Details] od
-                left join
-                    (select OrderID, Freight from Orders) as o on o.OrderID = od.OrderID
-    group by od.OrderID, o.Freight) as p) as order_value
-on Orders.OrderID = order_value.OrderID
-
+with t as(
+select C.ContactName, O.OrderID, O.OrderDate, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue,
+       lag(O.OrderID) over ( partition by C.CustomerID order by O.OrderDate) as PrevOrderID,
+       lag(O.OrderDate) over ( partition by C.CustomerID order by O.OrderDate) as PrevOrderDate
+from Orders O
+join [Order Details] OD
+on O.OrderID = OD.OrderID
+join Customers C
+on O.CustomerID = C.CustomerID
+group by O.OrderID, O.Freight, O.OrderDate, C.CustomerID, C.ContactName)
+select *
+from t
+join (select O.OrderID, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue
+      from Orders O
+      join dbo.[Order Details] OD
+      on O.OrderID = OD.OrderID
+      group by O.OrderID, O.Freight) as PD
+on t.PrevOrderID = PD.OrderID
 ```
 
+### Wnioski:
+#TODO
 
----
 # Zadanie 12 - obserwacja
 
 Funkcje `first_value()`, `last_value()`
@@ -586,9 +591,17 @@ order by unitprice desc) last
 from products  
 order by categoryid, unitprice desc;
 ```
+### Wnioski:
+Można zauważyć że zapytanie w tej formie nie pokazuje poprawnie najtańszego produktu w danej kategorii. Wynika to z faktu że funkcje `last_value()`, oraz `first_value()` domyślnie wykorzystują zakres **RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW**, co w naszym przypadku powoduje niepoprawne wyświetlanie produktu najtańszego w danej kategorii. Poniżej poprawiona wersja zapytania:
 
 ```sql
--- wyniki ...
+select productid, productname, unitprice, categoryid,
+       first_value(productname) over (partition by categoryid
+           order by unitprice desc) first,
+       last_value(productname) over (partition by categoryid
+           order by unitprice desc RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) last
+from products
+order by categoryid, unitprice desc;
 ```
 
 Zadanie
@@ -596,8 +609,15 @@ Zadanie
 Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czasy i plany zapytań. Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
--- wyniki ...
+select productid, productname, unitprice, categoryid,
+    (select top 1 ProductName from Products p2 where p2.CategoryID = p.CategoryID order by UnitPrice desc) as last,
+    (select top 1 ProductName from Products p2 where p2.CategoryID = p.CategoryID order by UnitPrice) as first
+from products p
+order by categoryid, unitprice desc;
 ```
+
+### Wnioski:
+#TODO
 
 ---
 # Zadanie 13
