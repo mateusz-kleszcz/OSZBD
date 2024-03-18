@@ -5,6 +5,7 @@
 
 ---
 **Imię i nazwisko:**
+Jacek Budny, Mateusz Kleszcz
 
 --- 
 
@@ -79,7 +80,9 @@ from products p;
 Jaka jest są podobieństwa, jakie różnice pomiędzy grupowaniem danych a działaniem funkcji okna?
 
 ```
-Grupowanie danych zwraca zagregowane wyniki, podczas gdy funkcje okna zwracają wyniki osobno dla wszystkich kolumn. Czas wykonania zapytania dla funkcji okna jak i dla grupowania danych jest zbliżony. 
+Grupowanie danych zwraca zagregowane wyniki, podczas gdy funkcje okna zwracają wyniki osobno dla
+wszystkich kolumn. Czas wykonania zapytania dla funkcji okna jak i dla grupowania danych jest 
+zbliżony. 
 ```
 
 ---
@@ -106,7 +109,9 @@ where productid < 10
 Jaka jest różnica? Czego dotyczy warunek w każdym z przypadków?
 
 ```
-Funkcja okna wykonuje się po klauzuli where, dlatego zwraca średnią cenę produktów jedynie z id mniejszym niż 10. Jeżeli użyjemy podzaptania, to średnia zostanie policzona z całej tabeli, a następnie zostaną wyświetlone produkty z id mniejszym niż 10.
+Funkcja okna wykonuje się po klauzuli where, dlatego zwraca średnią cenę produktów jedynie 
+z id mniejszym niż 10. Jeżeli użyjemy podzaptania, to średnia zostanie policzona z całej tabeli, 
+a następnie zostaną wyświetlone produkty z id mniejszym niż 10.
 ```
 
 Napisz polecenie równoważne 
@@ -168,13 +173,19 @@ from products p;
 
 ```
 Powyższe zapytania testowaliśmy w obrębie MS SQL Server.
-Czasy wykonania poszczególnych zapytań różnią się na tyle nieznacznie, że może być to błąd pomiaru. Największe czasy uzyskujemy przy użyciu zapytania z JOIN'em. Jest to też zapytanie najbardziej skomplikowane do napisania.
+Czasy wykonania poszczególnych zapytań różnią się na tyle nieznacznie, że może być to błąd pomiaru.
+Największe czasy uzyskujemy przy użyciu zapytania z JOIN'em. 
+Jest to też zapytanie najbardziej skomplikowane do napisania.
 ```
 
 ```
 Przetestowaliśmy również działanie funkcji okna w 3 SZBD.
-Czasy różniły się znacznie: dla MS SQL Server uzyskaliśmy czas 130ms, w Postgressie 80ms i w SQLite 68ms.
-Po przeanalizowaniu zapytań za pomocą "Explain Plain" w poszczególnych systemach, zauważyliśmy na diagramie, że MS SQL Server wykonuje znacznie więcej operacji w ramach wywołania funkcji (m. in. ma operację INNER JOIN, skanowanie indeksów i agregację), dlatego może być najwolniejsza.
+Czasy różniły się znacznie: dla MS SQL Server uzyskaliśmy czas 130ms, w Postgressie 80ms 
+i w SQLite 68ms.
+Po przeanalizowaniu zapytań za pomocą "Explain Plain" w poszczególnych systemach, 
+zauważyliśmy na diagramie, że MS SQL Server wykonuje znacznie więcej operacji w ramach 
+wywołania funkcji (m. in. ma operację INNER JOIN, skanowanie indeksów i agregację), 
+dlatego może być najwolniejsza.
 ```
 
 
@@ -190,8 +201,10 @@ Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 ```sql
 podzapytanie -79ms
-select p.ProductID, p.ProductName, p.UnitPrice, (select avg(unitprice) from Products where p.CategoryID = CategoryID) as avgprice
-from Products p where p.UnitPrice > (select avg(unitprice) from Products where p.CategoryID = CategoryID)
+select p.ProductID, p.ProductName, p.UnitPrice, 
+    (select avg(unitprice) from Products where p.CategoryID = CategoryID) as avgprice
+from Products p 
+where p.UnitPrice > (select avg(unitprice) from Products where p.CategoryID = CategoryID)
 ```
 join - 74ms
 ```sql
@@ -204,12 +217,16 @@ WHERE p.UnitPrice > avgprice
 okna - 82ms
 ```sql
 with t as (
-    select p.ProductID, p.ProductName, p.UnitPrice, avg(unitprice) over (partition by CategoryID) as avgprice from products p
+    select p.ProductID, p.ProductName, p.UnitPrice, 
+    avg(unitprice) over (partition by CategoryID) as avgprice from products p
 ) select * from t where t.UnitPrice > t.avgprice
 ```
 
 ```
-Wszystkie serwery wykonały podzapytania w identycznym czasie. Porównanie czasu dla tak małych danych nie ma większego sensu. Każda z funkcji wymagała użycia sumarycznie przynajmniej 2 zapytań, co wynika z tego, że warunek, który sprawdzamy, był zawarty w klauzuli WHERE, która wykona się jako pierwsza.
+Wszystkie serwery wykonały podzapytania w identycznym czasie. Porównanie czasu dla tak małych danych
+nie ma większego sensu. Każda z funkcji wymagała użycia sumarycznie przynajmniej 2 zapytań, 
+co wynika z tego, że warunek, który sprawdzamy, był zawarty w klauzuli WHERE, która wykona się 
+jako pierwsza.
 Tym razem nie zaobserwowaliśmy różnic w czasie pomiędzy różnymi SZBD 
 ```
 
@@ -371,7 +388,11 @@ Zapytanie przy użyciu funkcji okna MS SQL Server - 1s833ms
 Zapytanie przy użyciu funkcji okna Postgresa - 1s429ms
 Zapytanie przy użyciu funkcji okna SQLite - 1s755ms
 
-Podobnie jak w poprzednich zadaniach, widać zachowaną regułę, według której MS SQL Server radzi sobie najwolniej (szczególnie widoczne jest to w przypadku podzapytań), a SQLite najlepiej. Warto jednak zauważyć, że w przypadku funkcji okna, niezależnie od zastosowanego SZBD uzyskaliśmy prawie zawsze czas ok. 1.5s czyli znacznie wolniej niż w przypadku podzapytań dla Postgrea i SQLite'a. Może to oznaczać, że używanie funkcji okna nie sprawdzi się w przypadku danych, których nie grupujemy.
+Podobnie jak w poprzednich zadaniach, widać zachowaną regułę, według której MS SQL Server radzi sobie 
+najwolniej (szczególnie widoczne jest to w przypadku podzapytań), a SQLite najlepiej. Warto jednak 
+zauważyć, że w przypadku funkcji okna, niezależnie od zastosowanego SZBD uzyskaliśmy prawie zawsze 
+czas ok. 1.5s czyli znacznie wolniej niż w przypadku podzapytań dla Postgrea i SQLite'a. Może to 
+oznaczać, że używanie funkcji okna nie sprawdzi się w przypadku danych, których nie grupujemy.
 ```
 
 
@@ -399,7 +420,8 @@ Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 select p.id, p.ProductID, p.ProductName, p.UnitPrice,
     (select avg(UnitPrice) from product_history where CategoryID = p.CategoryID) as avgprice,
     (select sum(UnitPrice) from product_history where CategoryID = p.CategoryID) as sumprice,
-    (select avg(UnitPrice) from product_history where ProductID = p.ProductID and year(date) = year(p.date)) as yearavgprice
+    (select avg(UnitPrice) from product_history 
+        where ProductID = p.ProductID and year(date) = year(p.date)) as yearavgprice
 from product_history p
 ```
 - join
@@ -434,8 +456,12 @@ Zapytanie przy użyciu funkcji okna MS SQL Server - 3s331ms
 Zapytanie przy użyciu funkcji okna Postgresa - 7s82ms
 Zapytanie przy użyciu funkcji okna SQLite - 5s453ms
 
-Dzięki powyższym wynikom jesteśmy w statnie zauważyć przewagę systemu MS SQL Server nad innymi. Pomimo, że system ten sprawdzał się gorzej w przypadku mniej złożonych zapytań, tak w tym przypadku jako jedyny poradził sobie np. z podzapytaniami. Sprawdzał się on też najszybciej ze wszystkich systemów.
-Funkcje okna, choć trochę wolniejsze od podzapytań, okazały się najbardziej niezawodnym, a przy tym łatwym do napisania sposobem.
+Dzięki powyższym wynikom jesteśmy w statnie zauważyć przewagę systemu MS SQL Server nad innymi. 
+Pomimo, że system ten sprawdzał się gorzej w przypadku mniej złożonych zapytań, tak w tym przypadku 
+jako jedyny poradził sobie np. z podzapytaniami. Sprawdzał się on też najszybciej ze wszystkich 
+systemów.
+Funkcje okna, choć trochę wolniejsze od podzapytań, okazały się najbardziej niezawodnym, a przy tym 
+łatwym do napisania sposobem.
 Operacja z joinem jest już zbyt skomplikowana, aby za jej pomocą przetwarzać zapytania.
 ```
 
@@ -468,15 +494,18 @@ Spróbuj uzyskać ten sam wynik bez użycia funkcji okna
 select productid, productname, unitprice, categoryid,
        (select count(*) from products p1
             where p.CategoryID = p1.CategoryID
-              and (p.UnitPrice < p1.UnitPrice or (p.UnitPrice = p1.UnitPrice and p.ProductID > p1.ProductID)))
-           + 1 as myrowno,
+              and (p.UnitPrice < p1.UnitPrice 
+              or (p.UnitPrice = p1.UnitPrice and p.ProductID > p1.ProductID)))
+                + 1 as myrowno,
        (select count(*) from products p1
             where p1.CategoryID = p.CategoryID
               and p.UnitPrice < p1.UnitPrice)
            + 1 as myrankprice,
        (select count(*) from
-            (select distinct UnitPrice from products p1 where p1.CategoryID = p.CategoryID and p.UnitPrice < p1.UnitPrice) as less)
-           + 1 as mydenserankprice
+            (select distinct UnitPrice 
+             from products p1 
+             where p1.CategoryID = p.CategoryID and p.UnitPrice < p1.UnitPrice) as less)
+                + 1 as mydenserankprice
 from products p order by CategoryID, UnitPrice desc, ProductID;
 ```
 ![w:700](_img/screen8.png)
@@ -519,7 +548,9 @@ with t as (
     select year(ph.Date) as year, p.ProductID, p.ProductName, ph.UnitPrice,
            (select top 4 count (*) + 1
             from product_history ph1
-            where p.ProductID = ph1.productid and year(ph.date) = year(ph1.date) and ph1.unitprice > ph.unitprice
+            where p.ProductID = ph1.productid 
+                and year(ph.date) = year(ph1.date) 
+                and ph1.unitprice > ph.unitprice
             ) as rank
     from Products p
              join product_history ph on ph.ProductID = p.ProductID
@@ -530,7 +561,10 @@ order by Year, ProductID, rank;
 ```
 
 ```
-Po 30 krotnym :) zmniejszeniu tabeli wynikowej udało nam się uzyskać wynik 6s264ms dla MS SQL Servera (dla pozostałych SZBD nie udało się uzyskać wyniku nawet wtedy). Funkcje okna poradziy sobie z podanym zadaniem w 136ms. Oprócz tego rozwiązanie z funkcjami okna jest zdecydowanie dużo prostsze do napisania.
+Po 30 krotnym :) zmniejszeniu tabeli wynikowej udało nam się uzyskać wynik 6s264ms dla MS SQL Servera 
+(dla pozostałych SZBD nie udało się uzyskać wyniku nawet wtedy). Funkcje okna poradziy sobie z 
+podanym zadaniem w 136ms. Oprócz tego rozwiązanie z funkcjami okna jest zdecydowanie dużo prostsze do 
+napisania.
 ```
 
 ---
@@ -565,7 +599,9 @@ order by date;
 ```
 Lag pokazuje wartość poprzedniego rekordu, lead następnego.
 
-W drugim zapytaniu where zadziała dopiero po wykonaniu with i dlatego będziemy mieli wartość dla pierwszego produktu, w przypadku pierwszego zapytania where wykona się od razu i pierwszy rekord będzie miał wartość null. Obydwa zapytania zwracają null dla ostatniego rekordu.
+W drugim zapytaniu where zadziała dopiero po wykonaniu with i dlatego będziemy mieli wartość dla 
+pierwszego produktu, w przypadku pierwszego zapytania where wykona się od razu i pierwszy rekord 
+będzie miał wartość null. Obydwa zapytania zwracają null dla ostatniego rekordu.
 ```
 
 
@@ -591,7 +627,11 @@ order by ph.date;
 ![w:700](_img/screen10.png)
 
 ```
-Zapytanie z funkcją okna wykonywało się 276ms, a zapytanie z selectem 9s217ms. Dodatkowo, wykorzystaliśmy tutaj fakt, że w kolumnie date znajdują się daty co 1 dzień, jeżeli którejś daty by brakowało to zapytanie nie zadziałałoby. Rozwiązaniem mogłoby być użycie funkcji okna row_number (ale jeżeli zakładamy że ich nie używamy, to musielibyśmy zrobić selecta z countem, co prawdopodobnie sprawiłoby że nie uzyskalibyśmy wyników w sensownym czasie)
+Zapytanie z funkcją okna wykonywało się 276ms, a zapytanie z selectem 9s217ms. Dodatkowo, 
+wykorzystaliśmy tutaj fakt, że w kolumnie date znajdują się daty co 1 dzień, jeżeli którejś daty by 
+brakowało to zapytanie nie zadziałałoby. Rozwiązaniem mogłoby być użycie funkcji okna row_number (ale 
+jeżeli zakładamy że ich nie używamy, to musielibyśmy zrobić selecta z countem, co prawdopodobnie 
+sprawiłoby że nie uzyskalibyśmy wyników w sensownym czasie)
 Dla Postgresa i SQLitea zapytanie się nie wykonało nawet na zmniejszonym zbiorze wynikowym.
 ```
 
@@ -612,7 +652,8 @@ Zbiór wynikowy powinien zawierać:
 
 ```sql
 with t as(
-    select C.ContactName, O.OrderID, O.OrderDate, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue,
+    select C.ContactName, O.OrderID, O.OrderDate, 
+           sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue,
            lag(O.OrderID) over ( partition by C.CustomerID order by O.OrderDate) as PrevOrderID,
            lag(O.OrderDate) over ( partition by C.CustomerID order by O.OrderDate) as PrevOrderDate
     from Orders O
@@ -623,11 +664,12 @@ with t as(
     group by O.OrderID, O.Freight, O.OrderDate, C.CustomerID, C.ContactName)
 select t.*, PD.OrderValue
 from t
-        left join (select O.OrderID, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue
-                from Orders O
-                join dbo.[Order Details] OD
-                on O.OrderID = OD.OrderID
-                group by O.OrderID, O.Freight) as PD
+        left join (select O.OrderID, 
+                        sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue
+                   from Orders O
+                   join dbo.[Order Details] OD
+                   on O.OrderID = OD.OrderID
+                   group by O.OrderID, O.Freight) as PD
         on t.PrevOrderID = PD.OrderID
 ```
 
@@ -652,7 +694,10 @@ from products
 order by categoryid, unitprice desc;
 ```
 ```
-Można zauważyć że zapytanie w tej formie nie pokazuje poprawnie najtańszego produktu w danej kategorii. Wynika to z faktu że funkcje last_value(), oraz first_value() domyślnie wykorzystują zakres RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, co w naszym przypadku powoduje niepoprawne wyświetlanie produktu najtańszego w danej kategorii. Poniżej poprawiona wersja zapytania:
+Można zauważyć że zapytanie w tej formie nie pokazuje poprawnie najtańszego produktu w danej 
+kategorii. Wynika to z faktu że funkcje last_value(), oraz first_value() domyślnie wykorzystują 
+zakres RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW, co w naszym przypadku powoduje niepoprawne 
+wyświetlanie produktu najtańszego w danej kategorii. Poniżej poprawiona wersja zapytania:
 ```
 
 ```sql
@@ -671,8 +716,14 @@ Spróbuj uzyskać ten sam wynik bez użycia funkcji okna, porównaj wyniki, czas
 
 ```sql
 select productid, productname, unitprice, categoryid,
-    (select top 1 ProductName from Products p2 where p2.CategoryID = p.CategoryID order by UnitPrice desc) as last,
-    (select top 1 ProductName from Products p2 where p2.CategoryID = p.CategoryID order by UnitPrice) as first
+    (select top 1 ProductName 
+     from Products p2 
+     where p2.CategoryID = p.CategoryID 
+     order by UnitPrice desc) as last,
+    (select top 1 ProductName 
+     from Products p2 
+     where p2.CategoryID = p.CategoryID 
+     order by UnitPrice) as first
 from products p
 order by categoryid, unitprice desc;
 ```
@@ -686,7 +737,10 @@ order by categoryid, unitprice desc;
 ![w:700](_img/ex12_psql_window_plan.png)
 
 ```
-Porównując plany zapytań ciężko dojść do wniosku które zapytanie jest bardziej optymalne. Różnica zauważalna jest podczas porównania kosztów zapytań w wersji z funkcją okna jest to 0.0173 a w wersji bez funkcji okna 0.254. Widać więc że wykorzystanie funkcji okna jest dobrym wyborem, zmniejszającym koszt wykonania zapytania.
+Porównując plany zapytań ciężko dojść do wniosku które zapytanie jest bardziej optymalne. Różnica 
+zauważalna jest podczas porównania kosztów zapytań w wersji z funkcją okna jest to 0.0173 a w wersji 
+bez funkcji okna 0.254. Widać więc że wykorzystanie funkcji okna jest dobrym wyborem, zmniejszającym 
+koszt wykonania zapytania.
 ```
 
 ---
@@ -712,7 +766,8 @@ Zbiór wynikowy powinien zawierać:
 
 ```sql
 with t as
-        (select C.CustomerID, O.OrderID, O.OrderDate, sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue
+        (select C.CustomerID, O.OrderID, O.OrderDate, 
+            sum(OD.UnitPrice * OD.Quantity * (1 - OD.Discount)) + O.Freight as OrderValue
         from Orders O
         join [Order Details] OD
         on O.OrderID = OD.OrderID
@@ -720,8 +775,10 @@ with t as
         on O.CustomerID = C.CustomerID
         group by C.CustomerID, O.OrderID, O.OrderDate, O.Freight)
 select *,
-       first_value(concat(t.OrderID, ' ', t.OrderDate, ' ', t.OrderValue)) over (partition by t.CustomerID, month(t.OrderDate) order by t.OrderValue) as MinValueOrder,
-       first_value(concat(t.OrderID, ' ', t.OrderDate, ' ', t.OrderValue)) over (partition by t.CustomerID, month(t.OrderDate) order by t.OrderValue desc) as MaxValueOrder
+       first_value(concat(t.OrderID, ' ', t.OrderDate, ' ', t.OrderValue)) 
+        over (partition by t.CustomerID, month(t.OrderDate) order by t.OrderValue) as MinValueOrder,
+       first_value(concat(t.OrderID, ' ', t.OrderDate, ' ', t.OrderValue)) 
+        over (partition by t.CustomerID, month(t.OrderDate) order by t.OrderValue desc) as MaxValueOrder
 from t
 ```
 ![w:700](_img/ex13_result.png)
@@ -768,7 +825,9 @@ order by PH.productid, PH.date
 ```
 
 ```
-Zapytanie bez funkcji okna wykonuje się w znacznie dłuższym czasie. Różnicę widać w koszcie wykonania zapytań, 8112 bez wykorzystania funkcji okna oraz 26 wykorzystując funkcję okna. Pokazuje to przydatność tego mechanizmu. 
+Zapytanie bez funkcji okna wykonuje się w znacznie dłuższym czasie. Różnicę widać w koszcie wykonania 
+zapytań, 8112 bez wykorzystania funkcji okna oraz 26 wykorzystując funkcję okna. Pokazuje to 
+przydatność tego mechanizmu. 
 ```
 
 ![w:700](_img/ex14_no_window_result.png)
@@ -796,7 +855,9 @@ Wykonaj kilka "własnych" przykładowych analiz. Czy są jeszcze jakieś ciekawe
 select
     c.contactname, o.ORDERID, o.ORDERDATE,
     (SUM(od.unitprice * od.quantity * (1 - od.discount)) + o.freight) as OrderValue,
-    NTILE(4) over (PARTITION BY YEAR(o.ORDERDATE), MONTH(o.ORDERDATE) ORDER BY (SUM(od.unitprice * od.quantity * (1 - od.discount)) + o.freight)) as Quartile
+    ntile(4) over (
+        partition by YEAR(o.ORDERDATE), MONTH(o.ORDERDATE) 
+        order by (sum(od.unitprice * od.quantity * (1 - od.discount)) + o.freight)) as Quartile
 from
     orders o
         join
@@ -808,7 +869,8 @@ group by
 ```
 
 ```
-Zapytanie to zwraca nazwę klienta, numer zamówienia, datę zamówienia, wartość zamówienia oraz kwartyl, w którym znajduje się wartość zamówienia dla danego miesiąca
+Zapytanie to zwraca nazwę klienta, numer zamówienia, datę zamówienia, wartość zamówienia oraz 
+kwartyl, w którym znajduje się wartość zamówienia dla danego miesiąca
 ```
 ![w:700](_img/ex15_1.png)
 
@@ -835,7 +897,10 @@ where OrderRank = 1;
 ```
 
 ```
-Wykorzystujemy funkcję okna ROW_NUMBER() do przypisania kolejności zamówień dla każdego klienta na podstawie daty zamówienia, sortując malejąco po dacie zamówienia, a następnie wybieramy tylko te zamówienia, które mają wartość 1 w kolumnie OrderRank, co oznacza ostatnie zamówienie dla każdego klienta.
+Wykorzystujemy funkcję okna ROW_NUMBER() do przypisania kolejności zamówień dla każdego klienta na 
+podstawie daty zamówienia, sortując malejąco po dacie zamówienia, a następnie wybieramy tylko te 
+zamówienia, które mają wartość 1 w kolumnie OrderRank, co oznacza ostatnie zamówienie dla każdego 
+klienta.
 ```
 
 ![w:700](_img/ex15_2.png)
