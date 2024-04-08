@@ -17,6 +17,7 @@
 ---
 
 **Imię i nazwisko:**
+Jacek Budny, Mateusz Kleszcz
 
 --- 
 
@@ -89,10 +90,7 @@ Ikonki używane w graficznej prezentacji planu zapytania opisane są tutaj:
 
 
 
-
-
-
-<div style="page-break-after: always;"></div>
+<!-- <div style="page-break-after: always;"></div> -->
 
 # Zadanie 1 - Obserwacja
 
@@ -146,16 +144,9 @@ Teraz wykonaj poszczególne zapytania (najlepiej każde analizuj oddzielnie). Co
 (Hint: aby wykonać tylko fragment kodu SQL znajdującego się w edytorze, zaznacz go i naciśnij F5)
 
 ---
-> Wyniki: 
-
-```sql
---  ...
-```
+> Wyniki: Za każdym razem otrzymywaliśmy ostrzeżenie o brakującym indeksie, ze względu na wykonywanie inner join, w tym przypadku serwer musi przeszukiwać tabelę zamiast wykorzystać indeks. Dpbrym pomysłem jest również użycie indeksów do kolumn wykorzystywanych w klauzuli where np OrderDate, co może przyspieszyć wyszukiwanie. 
 
 ---
-
-
-
 
 
 <div style="page-break-after: always;"></div>
@@ -173,10 +164,6 @@ Sprawdź zakładkę **Tuning Options**, co tam można skonfigurować?
 
 ---
 > Wyniki: można skonfiguroawać PDS (indeksy, indeksowane widoki, indeksy klastrowe i nieklastrowe), można włączyć partycjonowanie pełne albo aligned, czy chcemy te wszystkie indeksy i partycje zachować 
-
-```sql
---  ...
-```
 
 ---
 
@@ -208,21 +195,28 @@ Opisz, dlaczego dane indeksy zostały zaproponowane do zapytań:
 > Wyniki: w rekomendacjach jest w reports jest: zostały zaproponowane następujące indeksy: ID - naprzykład: SalesOrderID, ProductID, ponieważ są wykorzystywane i inner join'ach w każdym zapytaniu. Również OrderDate, który jest wykorzystywany 1 i 3 zapytaniu w klauzuli where oraz CarrierTrackingNumber wykorzystywany w klauzuli where w 4 zapytaniu. 
 > Po przeanalizowaniu raportu poprawy poszczególnych kosztów, uzyskaliśmy wynik że dla 1 i 3 zapytania jesteśmy w stanie uzyskać poprawę o około 99.7% a dla zapytania 4. o około 93.8%. Dla zapytania 2. szacowana poprawa wynosi około 19%. W drugim zapytaniu nie występuje klauzula where, więc poprawę jesteśmy w stanie uzyskać przez indeksowanie kolumn wykorzystywanych w inner join.  
 
-```sql
---  ...
-```
-
 ---
 
 
 Sprawdź jak zmieniły się Execution Plany. Opisz zmiany:
-
+1:
+![[_img/1_1.png | 500]]
+![[_img/2-1.png | 500]]
+2:
+![[_img/1_2.png | 500]]
+![[_img/2-2.png | 500]]
+3:
+![[_img/1_3.png | 500]]
+![[_img/2-3.png | 500]]
+4:
+![[_img/1_4.png | 500]]
+![[_img/2-4.png | 500]]
 ---
-> Wyniki: 
-
-```sql
---  ...
-```
+> Wyniki: Table scan zamienia się na index seek, hash match zamienia się na nested loop.
+> W szczególności:
+> W zapytaniu 1 i 3 dzięki dodaniu indeksów, system nie musiał skanować tabel w całości co ma niebagatelny wpływ na wydajność.
+> W 2. zapytaniu Table Scan zmienia sięna Index Scan
+> W zapytaniu 4 dzięki indeksom zmniejszyła się ilość skanowanych rekordów 
 
 ---
 
@@ -256,11 +250,13 @@ Jakie są według Ciebie najważniejsze pola?
 
 ---
 > Wyniki: 
-
-```sql
---  ...
-```
-
+![[_img/3-6.png | 500]]
+> Ważne pola: 
+> index_type_desc - typ indeksu (klastrowany czy nie); 
+> index_depth - ilość poziomów indeksu; 
+> avg_fragmentation_in_percent - średnia procentowa fragmentacja zewnętrzna dla indeksów
+> avg_page_space_used_in_percent - średnia procentowa fragmentacja wewnętrzna dla indeksu
+> page_count - ilość stron zajętych przez dany indeks
 ---
 
 
@@ -289,12 +285,8 @@ and index_id not in (0) --only clustered and nonclustered indexes
 
 ---
 > Wyniki: 
-> zrzut ekranu/komentarz:
-
-```sql
---  ...
-```
-
+![[_img/3-1.png | 500]]
+> Wskazane indeksy tabel wwymagają reorganizacji. 
 ---
 
 
@@ -319,11 +311,8 @@ and index_id not in (0) --only clustered and nonclustered indexes
 
 ---
 > Wyniki: 
-> zrzut ekranu/komentarz:
-
-```sql
---  ...
-```
+![[_img/3-2.png | 500]]
+> Wskazane indeksy wymagają przebudowy.
 
 ---
 
@@ -333,10 +322,12 @@ Czym się różni przebudowa indeksu od reorganizacji?
 
 ---
 > Wyniki: 
+> Reorganizacja indeksów polega na optymalizacji istniejących indeksów bez zmiany ich struktury. 
+> Przebudowa indeksów jest bardziej radykalną operacją, która polega na całkowitym usunięciu i ponownym utworzeniu indeksu. Reorganizacji dokonujemy gdy wartość wskaźnika fragmentacji zewnętrznej znajduje się między 10 a 15 i wartość wskaźnika fragmentacji wewnętrznej znajduje się międy 60 a 75 procent.
+> Przebudowę przeprowadzamy gdy wskaźnik fragmentacji zewnętrznej jest większy niż 15 procent a wskaźnik fragmentacji wewnętrznej jest mniejszy niż 60 procent. 
+> Fragmentacja zewnętrzna określa rozproszenie bloków danych indeksu na dysku.
+> Fragmentacja wewnętrzna określa liczbę pustych miejsc wewnątrz bloków danych w strukturze indeksu.  
 
-```sql
---  ...
-```
 
 ---
 
@@ -344,10 +335,8 @@ Sprawdź co przechowuje tabela sys.dm_db_index_usage_stats:
 
 ---
 > Wyniki: 
-
-```sql
---  ...
-```
+![[_img/3-3.png | 500]]
+> Tabela przechowuje informacje o używaniu indeksów przez bazę danych. Można tam znaleźć informacje o ilości wywołań danego typu operacji na indeksach wraz z datą i czasem ich ostatniego wywołania.
 
 ---
 
@@ -390,11 +379,56 @@ Napisz przygotowane komendy SQL do naprawy indeksów:
 
 ---
 > Wyniki: 
-
+![[_img/3-4.png | 500]]
 ```sql
---  ...
+alter index XMLPATH_Person_Demographics on Person.Person rebuild
+alter index XMLPROPERTY_Person_Demographics on Person.Person rebuild
+alter index XMLVALUE_Person_Demographics on Person.Person rebuild
+```
+Skrypt dla reorganizacji:
+```sql
+use adventureworks2017  
+  
+--table to hold results  
+declare @tablevar table(lngid int identity(1,1), objectid int,  
+index_id int)  
+  
+
+ insert into @tablevar (objectid, index_id)
+select [object_id],  index_id
+from sys.dm_db_index_physical_stats (db_id('adventureworks2017')  
+,null -- null to view all tables  
+,null -- null to view all indexes; otherwise, input index number  
+,null -- null to view all partitions of an index  
+,'detailed') --we want all information  
+where ((avg_fragmentation_in_percent > 10  
+and avg_fragmentation_in_percent < 15) -- logical fragmentation  
+or (avg_page_space_used_in_percent < 75  
+and avg_page_space_used_in_percent > 60)) --page density  
+and page_count > 8 -- we do not want indexes less than 1 extent in size  
+and index_id not in (0) --only clustered and nonclustered indexes
+  
+select 'alter index ' + ind.[name] + ' on ' + sc.[name] + '.'  
++ object_name(objectid) + ' reorganize'  
+from @tablevar tv  
+inner join sys.indexes ind  
+on tv.objectid = ind.[object_id]  
+and tv.index_id = ind.index_id  
+inner join sys.objects ob  
+on tv.objectid = ob.[object_id]  
+inner join sys.schemas sc  
+on sc.schema_id = ob.schema_id
 ```
 
+> Wyniki:
+![[_img/3-5.png | 500]]
+```sql
+alter index PK_JobCandidate_JobCandidateID on HumanResources.JobCandidate reorganize
+alter index PK_ProductModel_ProductModelID on Production.ProductModel reorganize
+alter index PK_BillOfMaterials_BillOfMaterialsID on Production.BillOfMaterials reorganize
+alter index IX_WorkOrder_ProductID on Production.WorkOrder reorganize
+alter index IX_WorkOrderRouting_ProductID on Production.WorkOrderRouting reorganize
+```
 ---
 
 <div style="page-break-after: always;"></div>
@@ -419,10 +453,14 @@ Zapisz sobie kilka różnych typów stron, dla różnych indeksów:
 
 ---
 > Wyniki: 
-
-```sql
---  ...
-```
+> 1:
+![[_img/4-1.png | 500]]
+> 2:
+![[_img/4-2.png | 500]]
+> 3:
+![[_img/4-3.png | 500]]
+> 4:
+![[_img/4-4.png | 500]]
 
 ---
 
@@ -443,10 +481,9 @@ Zapisz obserwacje ze stron. Co ciekawego udało się zaobserwować?
 
 ---
 > Wyniki: 
-
-```sql
---  ...
-```
+![[_img/4-5.png | 500]]
+> Komenda DBCC PAGE zwraca szczegółowe informacje o strukturze wybranej strony.
+> Wyniki zawierają informacje o tym, jaka kolumna jest zapisana z jakim offsetem na danej stronie oraz przedstawiona jest jej wartość.
 
 ---
 
