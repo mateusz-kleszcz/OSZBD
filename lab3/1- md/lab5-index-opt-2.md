@@ -244,7 +244,8 @@ Jaki indeks można zastosować aby zoptymalizować koszt zapytania? Przygotuj po
 > Wyniki: 
 
 ```sql
---  ...
+create index purchase1
+on purchaseorderdetail (rejectedqty desc, productid asc) include (orderqty, duedate);
 ```
 
  Ponownie wykonaj analizę zapytania:
@@ -357,7 +358,11 @@ Czy indeks został użyty? Dlaczego?
 > Wyniki: 
 
 ```sql
---  ...
+select productassemblyid, componentid, startdate  
+from billofmaterials WITH(INDEX (billofmaterials_cond_idx))
+where enddate is not null  
+    and componentid = 327  
+    and startdate >= '2010-08-05'
 ```
 
 Spróbuj wymusić indeks. Co się stało, dlaczego takie zachowanie?
