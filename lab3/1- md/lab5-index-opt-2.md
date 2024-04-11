@@ -97,10 +97,10 @@ Zanotuj czas zapytania oraz jego koszt koszt:
 
 ---
 > Wyniki: 
-
-```sql
---  ...
-```
+![[img/1-1.png | 500]]
+![[img/1-2.png | 500]]
+> Pierwsze zapytanie: 0.139158
+> Drugie zapytanie: 0.139158
 
 
 Dodaj indeks:
@@ -114,11 +114,11 @@ Jak zmienił się plan i czas? Czy jest możliwość optymalizacji?
 
 ---
 > Wyniki: 
-
-```sql
---  ...
-```
-
+![[img/1-3.png | 500]]
+![[img/1-5.png | 500]]
+> Pierwsze zapytanie: 0.0065704
+> Drugie zapytanie: 0.0507122
+> Na planie widać dodatkową strukturę heap, jest on bardziej skomplikowany od podstawowego. Można zauważyć nieznaczne obniżenie czasu i znaczne obniżenie kosztu. Warto zaznaczyć, że dla zabytań bez użycia indeksów koszt ich był identyczny. Z kolei dla zapytań z użyciem indeksu nieklastrowego, drugie zapytanie miało znacznie większy koszt, co wynika z wielokrotnego odwoływania się do stworzonej struktury. Dalszą możliwością optymalizacji może być stworzenie indeksu klastrowego. 
 
 Dodaj indeks klastrowany:
 
@@ -131,11 +131,10 @@ Czy zmienił się plan i czas? Skomentuj dwa podejścia w wyszukiwaniu krotek.
 
 ---
 > Wyniki: 
-
-```sql
---  ...
-```
-
+![[img/1-7.png | 500]]
+![[img/1-9.png | 500]]
+> Pierwsze zapytanie: 0.0032831
+> Drugie zapytanie: 0.0032996
 
 
 # Zadanie 2 – Indeksy zawierające dodatkowe atrybuty (dane z kolumn)
@@ -176,7 +175,9 @@ Co można o nich powiedzieć?
 
 ---
 > Wyniki: 
-
+![[img/2-1.png | 500]]
+![[img/2-2.png | 500]]
+![[img/2-3.png | 500]]
 ```sql
 --  ...
 ```
@@ -193,10 +194,10 @@ Sprawdź plan zapytania. Co się zmieniło?
 
 ---
 > Wyniki: 
+![[img/2-4.png | 500]]
+![[img/2-5.png | 500]]
+![[img/2-6.png | 500]]
 
-```sql
---  ...
-```
 
 
 Przeprowadź ponownie analizę zapytań tym razem dla parametrów: `FirstName = ‘Angela’` `LastName = ‘Price’`. (Trzy zapytania, różna kombinacja parametrów). 
@@ -206,10 +207,9 @@ Czym różni się ten plan od zapytania o `'Osarumwense Agbonile'` . Dlaczego ta
 
 ---
 > Wyniki: 
-
-```sql
---  ...
-```
+![[img/2-7.png | 500]]
+![[img/2-8.png | 500]]
+![[img/2-9.png | 500]]
 
 
 # Zadanie 3
