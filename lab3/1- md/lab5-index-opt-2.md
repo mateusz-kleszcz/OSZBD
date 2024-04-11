@@ -16,7 +16,7 @@
 
 ---
 
-**Imię i nazwisko:**
+**Jacek Budny, Mateusz Kleszcz:**
 
 --- 
 
@@ -118,7 +118,10 @@ Jak zmienił się plan i czas? Czy jest możliwość optymalizacji?
 ![[img/1-5.png | 500]]
 > Pierwsze zapytanie: 0.0065704
 > Drugie zapytanie: 0.0507122
-> Na planie widać dodatkową strukturę heap, jest on bardziej skomplikowany od podstawowego. Można zauważyć nieznaczne obniżenie czasu i znaczne obniżenie kosztu. Warto zaznaczyć, że dla zabytań bez użycia indeksów koszt ich był identyczny. Z kolei dla zapytań z użyciem indeksu nieklastrowego, drugie zapytanie miało znacznie większy koszt, co wynika z wielokrotnego odwoływania się do stworzonej struktury. Dalszą możliwością optymalizacji może być stworzenie indeksu klastrowego. 
+
+```
+Na planie widać dodatkową strukturę heap, jest on bardziej skomplikowany od podstawowego. Można zauważyć nieznaczne obniżenie czasu i znaczne obniżenie kosztu. Warto zaznaczyć, że dla zapytań bez użycia indeksów, ich koszt był identyczny. Z kolei dla zapytań z użyciem indeksu nieklastrowego, drugie zapytanie miało znacznie większy koszt, co wynika z wielokrotnego odwoływania się do stworzonej struktury. Dalszą możliwością optymalizacji może być stworzenie indeksu klastrowego. 
+```
 
 Dodaj indeks klastrowany:
 
@@ -128,13 +131,16 @@ create clustered index customer_store_cls_idx on customer(storeid)
 
 Czy zmienił się plan i czas? Skomentuj dwa podejścia w wyszukiwaniu krotek.
 
-
 ---
 > Wyniki: 
 ![[img/1-7.png | 500]]
 ![[img/1-9.png | 500]]
 > Pierwsze zapytanie: 0.0032831
 > Drugie zapytanie: 0.0032996
+
+```
+Koszt oraz czas wykonania znacznie zmniejszył się w stosunku do zastosowania indeksu nieklastrowego. Na planie równie widać znaczne uproszczenie operacji. Nie ma dodatkowej struktury heap, jest tylko jedna operacja clustered index seek. Problemem jednak jest fakt, ze mozemy utworzyć tylko jedną taką strukturę na całą tabelę, dlatego indeks taki najlepiej nalozyć na często uzywane kolumny.
+```
 
 
 # Zadanie 2 – Indeksy zawierające dodatkowe atrybuty (dane z kolumn)
@@ -179,7 +185,7 @@ Co można o nich powiedzieć?
 ![[img/2-2.png | 500]]
 ![[img/2-3.png | 500]]
 ```sql
---  ...
+Kazde zapytanie ma taką samą strukturę i taki sam koszt.
 ```
 
 Przygotuj indeks obejmujący te zapytania:
@@ -198,6 +204,10 @@ Sprawdź plan zapytania. Co się zmieniło?
 ![[img/2-5.png | 500]]
 ![[img/2-6.png | 500]]
 
+```
+We wszystkich 3 zapytaniach pojawiła się pętla łącząca wyniki oraz skanowanie indeksów. Koszt wyraźnie zmalał.
+```
+
 
 
 Przeprowadź ponownie analizę zapytań tym razem dla parametrów: `FirstName = ‘Angela’` `LastName = ‘Price’`. (Trzy zapytania, różna kombinacja parametrów). 
@@ -210,6 +220,10 @@ Czym różni się ten plan od zapytania o `'Osarumwense Agbonile'` . Dlaczego ta
 ![[img/2-7.png | 500]]
 ![[img/2-8.png | 500]]
 ![[img/2-9.png | 500]]
+
+```
+Tym razem róznica w wykonywanych operacjach oraz koszcie, pojawiła się tylko w przypadku drugiego zapytania. Wynika to z faktu, ze w przypadku poprzedniego zapytania, mieliśmy tylko jeden zwracany rekord w kazdym przypadku. W bazie istnieje jednak wiele osób o imieniu Angela lub nazwisku Price, co sprawia ze dane są mało specyficzne. W tym przypadku planer stwierdził, ze lepiej jest nie wykorzystywać utworzonego indeksu.
+```
 
 
 # Zadanie 3
@@ -232,16 +246,20 @@ Która część zapytania ma największy koszt?
 
 ---
 > Wyniki: 
+![[img/3-1.png | 500]]
 
 ```sql
---  ...
+Jak widać na załączonym diagramie, największy koszt generuje operacja sortowania danych, jest to az 87% całego kosztu zapytania. Koszt całego zapytania to 0.528317.
 ```
 
 Jaki indeks można zastosować aby zoptymalizować koszt zapytania? Przygotuj polecenie tworzące index.
 
 
 ---
-> Wyniki: 
+
+```
+Mozna zastosować indeks na kolumny, które są uzyte podczas operacji sortowania. Wazne jest dodanie klauzuli include, w której zawarte są kolumny uzywane bezpośrednio w select. Bez nich indeks nie jest brany pod uwagę.
+```
 
 ```sql
 create index purchase1
@@ -250,12 +268,12 @@ on purchaseorderdetail (rejectedqty desc, productid asc) include (orderqty, dued
 
  Ponownie wykonaj analizę zapytania:
 
-
 ---
 > Wyniki: 
+![[img/3-2.png | 500]]
 
 ```sql
---  ...
+Operacja skanowania i sortowana została zastąpiona przez pojedynczą operację Full Index Scan, a całkowity koszt wykonania zapytania wyniósł 0.0406, co jest znaczną poprawą w stosunku do braku indeksu (około 13 razy).
 ```
 
 # Zadanie 4
@@ -291,9 +309,15 @@ go
 Czy jest widoczna różnica w zapytaniach? Jeśli tak to jaka? Aby wymusić użycie indeksu użyj `WITH(INDEX(Address_PostalCode_1))` po `FROM`:
 
 > Wyniki: 
+Bez uzycia indeksu
+![[img/4-5.png | 500]]
+![[img/4-1.png | 500]]
+Z indeksem
+![[img/4-4.png | 500]]
+![[img/4-2.png | 500]]
 
 ```sql
---  ...
+W przypadku zapytania z wykorzystaniem indeksów, kolumny są dodatkowo posortowane, według kolumny postalcode, adressline1, addresline2, city i stateprovinceid. Analizując plan zapytania mozemy zobaczyć, ze Full Scan został zastąpiony Index Scanem.
 ```
 
 
@@ -313,9 +337,10 @@ Który jest większy? Jak można skomentować te dwa podejścia do indeksowania?
 
 
 > Wyniki: 
+![[img/4-3.png | 500]]
 
 ```sql
---  ...
+Drugi indeks, jest nieznacznie większy. Wynika to z faktu, ze w przypadku pierwszego indeksu wykorzystana jest tylko kolumna postalcode, z kolei w drugim indeksie wszystkie. Jezeli w zapytaniu będziemy uzywać wszystkich kolumn, to szybkość zrekompensuje koszty pamięciowe. W przypadku gdy np. w klauzuli WHERE wykorzystujemy w większości przypadków tylko postalcode, lepiej zastosować indeks pierwszy.
 ```
 
 
@@ -356,6 +381,13 @@ Przeanalizuj plan dla poniższego zapytania:
 Czy indeks został użyty? Dlaczego?
 
 > Wyniki: 
+![[img/5-1.png | 500]]
+
+```sql
+Indeks nie został uzyty, co wynika z faktu, z małej róznorodności danych (dosyć często pojawiają się dane z takim samym componentid oraz startdate). Podobnie jak w zadaniu 2, wykorzystanie indeksu w tym przypadku nie powinno przyspieszyć zapytań.
+```
+
+Spróbuj wymusić indeks. Co się stało, dlaczego takie zachowanie?
 
 ```sql
 select productassemblyid, componentid, startdate  
@@ -365,12 +397,12 @@ where enddate is not null
     and startdate >= '2010-08-05'
 ```
 
-Spróbuj wymusić indeks. Co się stało, dlaczego takie zachowanie?
+![[img/5-2.png | 500]]
 
 > Wyniki: 
 
 ```sql
---  ...
+Po wymuszenie indeksu koszt całego zapytania wzrósł 3 krotnie. Wynika to z opisanego wyzej problemu, dane często powtarzają się. Rozwiązaniem mogłoby być np. dodanie INCLUDE(productassemblyid)
 ```
 
 
