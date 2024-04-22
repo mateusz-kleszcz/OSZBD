@@ -353,47 +353,38 @@ Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 - Podzapytanie
 ```sql
-select p.id, p.ProductID, p.ProductName, p.UnitPrice,
-       (select avg(UnitPrice) from product_history) as avgprice
-from product_history p
+select ph.id, ph.productid, ph.ProductName, ph.unitprice,
+(select avg(unitprice) from product_history where CategoryID = ph.CategoryID) as avgprice
+from product_history ph
+where ph.UnitPrice > (select avg(unitprice) from product_history where CategoryID = ph.CategoryID);
 ```
-![w:700](_img/screen1.png)
+<!-- ![w:700](_img/screen1.png) -->
 
 - join
 ```sql
-select p.id, p.ProductID, p.ProductName, p.UnitPrice,
-    (select avg(UnitPrice) from product_history) as avgprice
-from product_history p
-    cross join (select avg(UnitPrice) as avgprice from product_history) as prod
+select ph1.id, ph1.productid, ph1.ProductName, ph1.unitprice, avg(ph2.UnitPrice) as avgPrice
+from product_history ph1
+join product_history ph2
+on ph2.CategoryID = ph1.CategoryID
+group by ph1.id, ph1.productid, ph1.ProductName, ph1.unitprice
+having ph1.unitprice > avg(ph2.UnitPrice);
 ```
-![w:700](_img/screen2.png)
+<!-- ![w:700](_img/screen2.png) -->
 
 - okna
 ```sql
-select p.id, p.ProductID, p.ProductName, p.UnitPrice, avg(unitprice) over () as avgprice
-from product_history p;
+with new_product AS (
+select ph.id, ph.productid, ph.ProductName, ph.unitprice, AVG(ph.UnitPrice) over (Partition by CategoryID) avgprice
+from product_history ph
+)
+select nph1.id, nph1.productid, nph1.ProductName, nph1.unitprice, nph1.avgprice
+from new_product nph1
+where nph1.unitprice > nph1.avgprice
 ```
-![w:700](_img/screen3.png)
+<!-- ![w:700](_img/screen3.png) -->
 
-```
-Zapytanie przy użyciu podzapytań MS SQL Server - 1s911ms
-Zapytanie przy użyciu podzapytań Postgresa - 120ms
-Zapytanie przy użyciu podzapytań SQLite - 72ms
 
-Zapytanie przy użyciu join MS SQL Server - 1s976ms
-Zapytanie przy użyciu join Postgresa - 1s650ms
-Zapytanie przy użyciu join SQLite - 776ms
-
-Zapytanie przy użyciu funkcji okna MS SQL Server - 1s833ms
-Zapytanie przy użyciu funkcji okna Postgresa - 1s429ms
-Zapytanie przy użyciu funkcji okna SQLite - 1s755ms
-
-Podobnie jak w poprzednich zadaniach, widać zachowaną regułę, według której MS SQL Server radzi sobie 
-najwolniej (szczególnie widoczne jest to w przypadku podzapytań), a SQLite najlepiej. Warto jednak 
-zauważyć, że w przypadku funkcji okna, niezależnie od zastosowanego SZBD uzyskaliśmy prawie zawsze 
-czas ok. 1.5s czyli znacznie wolniej niż w przypadku podzapytań dla Postgrea i SQLite'a. Może to 
-oznaczać, że używanie funkcji okna nie sprawdzi się w przypadku danych, których nie grupujemy.
-```
+> Winioski:
 
 
 ---
