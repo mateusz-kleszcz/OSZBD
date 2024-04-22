@@ -385,9 +385,31 @@ where nph1.unitprice > nph1.avgprice
 
 
 > Winioski:
+> Wynik wykonania zapytania:
+![w:700](_img/ex6_result.png)
+> Plan zapytania z podzapytaniem na SQL Server:
+> ![w:700](_img/ex6_sql_subq_plan.png)
+> Koszt 71.70
+> Plan zapytanie z join na SQL Server
+> ![w:700](_img/ex6_sql_join_plan.png)
+> Koszt: 44.17
+> Plan zapytania z oknem na SQL Serer
+> ![w:700](_img/ex6_sql_window_plan.png)
+> Koszt: 34.75
+> Plan zapytania z oknem na PostgreSQL:
+> ![w:700](_img/ex6_psql_window_plan.png)
+> Plan zapytania z oknem na SQLite:
+> ![w:700](_img/ex6_sqlite_window_plan.png)
+> Dla zapytań i join'ów zarówno w Postgresie, jak i SQLite, wyniki nie były zwracane przez długi czas (przekraczający kilka minut), dlatego zdecydowaliśmy przerwać ich przetwarzanie. Co ciekawe, SQL Server zwrócił wszystkie wyniki już po sekundzie. Postanowiliśmy stworzyć nową tabelę zawierającą tylko 30 000 wierszy (w przeciwieństwie do ponad 2 000 000 wierszy w oryginalnej tabeli product_history). Na nowej tabeli czasy wykonania były nadal znacznie większe niż na SQL Serverze. 
+> Dla funkcji okna wszystkie bazy danych testowaliśmy na tabeli z pierwotną liczbą rekordów.
+> Jednakże, jeśli chodzi o funkcje okna, różnica między SQLite a PostgreSQL jest niewielka, a czasy wynoszą około 4 sekund, podczas gdy dla SQLite czas wykonania wynosił około 1 sekundę.
 
+> Pomimo większej złożoności planu w SQL Server, czas wykonania dla każdej komendy był znacząco krótszy.
 
+> Dla podzapytania z oknem widać, że Full scan index wykonwany jest tylko jeden raz. 
 ---
+
+
 # Zadanie 7
 
 Baza: Northwind, tabela product_history
