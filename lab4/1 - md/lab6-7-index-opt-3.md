@@ -319,6 +319,19 @@ SELECT * FROM Dishes WHERE dishName Like '%1%'
 
 ![[_img/4-6.png | 500]]
 
+CREATE NONCLUSTERED INDEX index_dish_name ON dishes(price, rating)
+
+SELECT * FROM Dishes WHERE price > 100 AND rating > 4
+
+CREATE NONCLUSTERED INDEX index_dish ON dishes(vegan) INCLUDE(dishName, dishType) WHERE vegan = 1
+
+SELECT dishName, dishType FROM Dishes WHERE vegan = 1
+SELECT * FROM Dishes WHERE vegan = 1
+SELECT dishName, dishType FROM Dishes WHERE vegan = 0
+
+> 0.0296982
+> 0.0676153
+
 
 |         |     |     |     |
 | ------- | --- | --- | --- |
