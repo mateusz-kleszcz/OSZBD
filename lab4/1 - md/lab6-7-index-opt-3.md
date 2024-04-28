@@ -17,6 +17,7 @@
 ---
 
 **Imię i nazwisko:**
+Jacek Budny, Mateusz Kleszcz
 
 --- 
 
@@ -106,12 +107,18 @@ Skomentuj oba zapytania. Czy indeks został użyty w którymś zapytaniu, dlacze
 
 ---
 > Wyniki: 
-
-```sql
---  ...
-```
-
-
+> Plan dla pierwszego zapytania:
+![[_img/1_1.png | 500]]
+Koszt: 0.0033
+> Plan dla drugiego zapytania: 
+![[_img/1_2.png | 500]]
+Koszt: 0.0127
+> Wyniki działania zapytań są zgodne z oczekiwaniami, biorąc pod uwagę warunek przedziałowy, który został określony podczas tworzenia indeksu.
+> W pierwszym zaytaniu indeks został wykorzystany ponieważ warunki w klauzuli `where` mieszczą się w przedziale dla którego został stworzony ten indeks. 
+> W drugim zapytaniu indeks nie został wykorzystany, gdyż warunek w tym zapytaniu nie mieści się w przedziale. Zamiast tego przeprowadzony został proces skanowania tabeli.
+> Z porównania kosztu wynika, że wykorzystanie indeksu znacząco zmniejsza koszt zapytania.
+>
+> Indeksy z warunkiem są specjalnym rodzajem indeksów , które przechowują tylko część danych z tabeli, opierając się na określonym warunku filtrowania. Ich główną zaletą jest zmniejszenie rozmiaru indeksu, dzięki przechowywaniu tylko części danych z tabeli. Zwiększa to ich efektywność w przypadku gdy chcemy mieć szybszy dostęb tylko do części danych z tabeli.
 
 # Zadanie 2 – indeksy klastrujące
 
@@ -141,10 +148,14 @@ Wypisz ponownie sto pierwszych zamówień. Co się zmieniło?
 
 ---
 > Wyniki: 
+> Plan dla pierwszego zapytania:
+![[_img/2_1.png | 500]]
+Koszt: 2.799
+> Plan dla drugiego zapytania: 
+![[_img/2_2.png | 500]]
+> Koszt: 0.023
+> Zamiast pełnego skanowania tabeli, silnik bazy danych skorzystał z indeksu klastrującego, co znacznie zmniejsza koszt operacji. Koszt wykonania zapytania znacząco się zmniejszył z 2.799 do 0.023.
 
-```sql
---  ...
-```
 
 
 Sprawdź zapytanie:
@@ -153,16 +164,28 @@ Sprawdź zapytanie:
 select top 1000 * from salesorderheader2  
 where orderdate between '2010-10-01' and '2011-06-01'
 ```
-
+> Plan zapytania: 
+![[_img/2_2_5.png | 500]]
+> Koszt: 0.0041
+> Koszt wykonania zapytania również zmniejszył się, z 0.023 do 0.0041.
 
 Dodaj sortowanie według OrderDate ASC i DESC. Czy indeks działa w obu przypadkach. Czy wykonywane jest dodatkowo sortowanie?
 
 
 ---
-> Wyniki: 
-
+> Plan dla zapytania z sortowaniem rosnąco: 
+![[_img/2_3.png | 500]]
+Koszt: 0.0041
+> Plan dla zapytania z sortowaniem malejąco: 
+![[_img/2_4.png | 500]]
+> Koszt: 0.0041
+> Indeks klastrujący jest nadal używany, co eliminuje potrzebę dodatkowego sortowania. Koszt operacji pozostaje niski, niezależnie od kierunku sortowania. 
+> Indeks klastrujący na kolumnie `orderdate` umożliwia szybkie zlokalizowanie odpowiednich rekordów zgodnie z kryteriami wyszukiwania oraz automatyczne posortowanie wyników według tej samej kolumny. Dodatkowo, nie jest wykonywane dodatkowe sortowanie w przypadku zapytań, które wymagają sortowania wyników.
 ```sql
---  ...
+select top 1000 * 
+from salesorderheader2  
+where orderdate between '2010-10-01' and '2011-06-01'
+order by orderdate asc|desc;
 ```
 
 
@@ -229,11 +252,15 @@ Sprawdź różnicę pomiędzy przetwarzaniem w zależności od indeksów. Porów
 
 
 ---
-> Wyniki: 
-
-```sql
---  ...
-```
+> Plan dla zapytania z indeksem klastrującym : 
+![[_img/3_1.png | 500]]
+Koszt: 262.3
+> Plan dla zapytania z indeksem ColumnStore: 
+![[_img/3_2.png | 500]]
+> Koszt: 3.60
+> Dla pierwszego zapytania wykorzystany został indeks klastrujący. Dla każdego wiersza została przeprowadzona operacja odczytu zawartości indeksu/
+> Dla drugiego zapytanie wykorzystany został indeks ColumnStore. Operacja odczytu indeksu została przeprowadzona tylko dwa razy. Koszt zapytania srastycznie zmalał.
+> Różnica polega głównie na tym, że indeks klastrujący jest bardziej efektywny w przypadku pojedynczych operacji odczytu na konkretnych wierszach, podczas gdy indeks ColumnStore jest bardziej efektywny w przypadku agregacji danych na dużą skalę. 
 
 # Zadanie 4 – własne eksperymenty
 
