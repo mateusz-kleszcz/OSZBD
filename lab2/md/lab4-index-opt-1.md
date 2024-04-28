@@ -144,7 +144,16 @@ Teraz wykonaj poszczególne zapytania (najlepiej każde analizuj oddzielnie). Co
 (Hint: aby wykonać tylko fragment kodu SQL znajdującego się w edytorze, zaznacz go i naciśnij F5)
 
 ---
-> Wyniki: Za każdym razem otrzymywaliśmy ostrzeżenie o brakującym indeksie, ze względu na wykonywanie inner join, w tym przypadku serwer musi przeszukiwać tabelę zamiast wykorzystać indeks. Dpbrym pomysłem jest również użycie indeksów do kolumn wykorzystywanych w klauzuli where np OrderDate, co może przyspieszyć wyszukiwanie. 
+> Wyniki: Za każdym razem otrzymywaliśmy ostrzeżenie o brakującym indeksie.
+>
+> ![[_img/1_first_query.png | 500]]
+> W pierwszym przypadku zapytania, kiedy mieliśmy datę, która nie miała odpowiadającego rekordu w bazie danych, join nie został wykonany. System automatycznie rozpoznał, że nie ma sensu przeprowadzać operacji join. Natomiast gdy data już istniała w bazie danych, został przeprowadzony pełny skan bazy, aby dokonać operacji join.
+> ![[_img/1_second_query.png | 500]]
+> W drugim zapytaniu możemy zaobserwować, że mamy wykonanie, które jest wykonywane równolegle. Część naszego zapytania została rozdzielona na osobne wątki, co umożliwiło przyspieszenie jego wykonania. Oprogramowanie zasugerowało nam również, aby utworzyć indeks na odpowiedniej kolumnie, podczas wykonania zapytania w konsoli.
+> ![[_img/1_third_query.png | 500]]
+> Z planu tego zapytania można wyciągnąć te same wnioski, co w przypadku zapytania 1.
+> ![[_img/1_fourth_query.png | 500]]
+> W ostatnim zapytaniu obserwujemy odwrotną sytuację w porównaniu do zapytań 1 i 3, gdzie tabela "salesorderheader" miała mniejszą liczbę wykonanych operacji niż rekordów w tabeli, a tabela "salesorderdetail" miała tę samą liczbę operacji co rekordów. Tym razem sytuacja jest odwrotna, ponieważ warunek w klauzuli WHERE jest skierowany do tabeli "salesorderdetail", a nie jak poprzednio do "salesorderheader".
 
 ---
 

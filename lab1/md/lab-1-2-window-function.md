@@ -353,50 +353,63 @@ Przetestuj działanie w różnych SZBD (MS SQL Server, PostgreSql, SQLite)
 
 - Podzapytanie
 ```sql
-select p.id, p.ProductID, p.ProductName, p.UnitPrice,
-       (select avg(UnitPrice) from product_history) as avgprice
-from product_history p
+select ph.id, ph.productid, ph.ProductName, ph.unitprice,
+(select avg(unitprice) from product_history where CategoryID = ph.CategoryID) as avgprice
+from product_history ph
+where ph.UnitPrice > (select avg(unitprice) from product_history where CategoryID = ph.CategoryID);
 ```
-![w:700](_img/screen1.png)
+<!-- ![w:700](_img/screen1.png) -->
 
 - join
 ```sql
-select p.id, p.ProductID, p.ProductName, p.UnitPrice,
-    (select avg(UnitPrice) from product_history) as avgprice
-from product_history p
-    cross join (select avg(UnitPrice) as avgprice from product_history) as prod
+select ph1.id, ph1.productid, ph1.ProductName, ph1.unitprice, avg(ph2.UnitPrice) as avgPrice
+from product_history ph1
+join product_history ph2
+on ph2.CategoryID = ph1.CategoryID
+group by ph1.id, ph1.productid, ph1.ProductName, ph1.unitprice
+having ph1.unitprice > avg(ph2.UnitPrice);
 ```
-![w:700](_img/screen2.png)
+<!-- ![w:700](_img/screen2.png) -->
 
 - okna
 ```sql
-select p.id, p.ProductID, p.ProductName, p.UnitPrice, avg(unitprice) over () as avgprice
-from product_history p;
+with new_product AS (
+select ph.id, ph.productid, ph.ProductName, ph.unitprice, AVG(ph.UnitPrice) over (Partition by CategoryID) avgprice
+from product_history ph
+)
+select nph1.id, nph1.productid, nph1.ProductName, nph1.unitprice, nph1.avgprice
+from new_product nph1
+where nph1.unitprice > nph1.avgprice
 ```
-![w:700](_img/screen3.png)
-
-```
-Zapytanie przy użyciu podzapytań MS SQL Server - 1s911ms
-Zapytanie przy użyciu podzapytań Postgresa - 120ms
-Zapytanie przy użyciu podzapytań SQLite - 72ms
-
-Zapytanie przy użyciu join MS SQL Server - 1s976ms
-Zapytanie przy użyciu join Postgresa - 1s650ms
-Zapytanie przy użyciu join SQLite - 776ms
-
-Zapytanie przy użyciu funkcji okna MS SQL Server - 1s833ms
-Zapytanie przy użyciu funkcji okna Postgresa - 1s429ms
-Zapytanie przy użyciu funkcji okna SQLite - 1s755ms
-
-Podobnie jak w poprzednich zadaniach, widać zachowaną regułę, według której MS SQL Server radzi sobie 
-najwolniej (szczególnie widoczne jest to w przypadku podzapytań), a SQLite najlepiej. Warto jednak 
-zauważyć, że w przypadku funkcji okna, niezależnie od zastosowanego SZBD uzyskaliśmy prawie zawsze 
-czas ok. 1.5s czyli znacznie wolniej niż w przypadku podzapytań dla Postgrea i SQLite'a. Może to 
-oznaczać, że używanie funkcji okna nie sprawdzi się w przypadku danych, których nie grupujemy.
-```
+<!-- ![w:700](_img/screen3.png) -->
 
 
+> Winioski:
+> Wynik wykonania zapytania:
+![w:700](_img/ex6_result.png)
+> Plan zapytania z podzapytaniem na SQL Server:
+> ![w:700](_img/ex6_sql_subq_plan.png)
+> Koszt 71.70
+> Plan zapytanie z join na SQL Server
+> ![w:700](_img/ex6_sql_join_plan.png)
+> Koszt: 44.17
+> Plan zapytania z oknem na SQL Serer
+> ![w:700](_img/ex6_sql_window_plan.png)
+> Koszt: 34.75
+> Plan zapytania z oknem na PostgreSQL:
+> ![w:700](_img/ex6_psql_window_plan.png)
+> Plan zapytania z oknem na SQLite:
+> ![w:700](_img/ex6_sqlite_window_plan.png)
+> Dla zapytań i join'ów zarówno w Postgresie, jak i SQLite, wyniki nie były zwracane przez długi czas (przekraczający kilka minut), dlatego zdecydowaliśmy przerwać ich przetwarzanie. Co ciekawe, SQL Server zwrócił wszystkie wyniki już po sekundzie. Postanowiliśmy stworzyć nową tabelę zawierającą tylko 30 000 wierszy (w przeciwieństwie do ponad 2 000 000 wierszy w oryginalnej tabeli product_history). Na nowej tabeli czasy wykonania były nadal znacznie większe niż na SQL Serverze. 
+> Dla funkcji okna wszystkie bazy danych testowaliśmy na tabeli z pierwotną liczbą rekordów.
+> Jednakże, jeśli chodzi o funkcje okna, różnica między SQLite a PostgreSQL jest niewielka, a czasy wynoszą około 4 sekund, podczas gdy dla SQLite czas wykonania wynosił około 1 sekundę.
+
+> Pomimo większej złożoności planu w SQL Server, czas wykonania dla każdej komendy był znacząco krótszy.
+
+> Dla podzapytania z oknem widać, że Full scan index wykonwany jest tylko jeden raz. 
 ---
+
+
 # Zadanie 7
 
 Baza: Northwind, tabela product_history
