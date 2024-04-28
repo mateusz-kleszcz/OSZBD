@@ -261,13 +261,63 @@ Odpowiedź powinna zawierać:
 - Sprawdzenie, co proponuje Database Engine Tuning Advisor (porównanie czy udało się Państwu znaleźć odpowiednie indeksy do zapytania)
 
 
-> Wyniki: 
-
 ```sql
---  ...
+CREATE TABLE Dishes (
+    id INT PRIMARY KEY IDENTITY(1,1),
+    dishName VARCHAR(255),
+    dishType VARCHAR(50),
+	price INT,
+    rating DECIMAL(2,1),
+	vegan BIT
+);
+GO
+~~~~
+declare @i int  
+set @i = 1  
+while @i <= 10000  
+begin  
+    insert into Dishes(dishName, dishType, price, rating, vegan)
+    values(
+		concat('dish ', @i),
+		CASE FLOOR(RAND() * 4)
+			WHEN 0 THEN 'starter'
+			WHEN 1 THEN 'main dish'
+			WHEN 2 THEN 'dessert'
+			ELSE 'drink'
+		END,
+		ROUND(RAND() * 20 + 100, 2),
+		ROUND(RAND() * 5 + 1, 1),
+		ROUND(RAND() * 2, 0)
+	);
+    set @i = @i + 1;  
+end;  
+GO
 ```
 
+```sql
+SELECT * FROM Dishes WHERE dishName Like 'dish 1000'
+```
+![[_img/4-1.png | 500]]
+> Koszt 0.0676153
 
+select * from sys.indexes
+where object_id = (select object_id from sys.objects where name = 'dishes')
+
+![[_img/4-2.png | 500]]
+
+ALTER TABLE dishes DROP CONSTRAINT PK__Dishes__3213E83FBD80821A
+
+![[_img/4-3.png | 500]]
+> Koszt 0.0676153
+
+![[_img/4-4.png | 500]]
+CREATE CLUSTERED INDEX index_dish_name ON dishes(dishName)
+> Koszt 0.0032831
+
+SELECT * FROM Dishes WHERE dishName Like '%1%'
+![[_img/4-5.png | 500]]
+
+![[_img/4-6.png | 500]]
 
 
 |         |     |     |     |
