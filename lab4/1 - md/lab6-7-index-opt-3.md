@@ -271,7 +271,7 @@ CREATE TABLE Dishes (
 	vegan BIT
 );
 GO
-~~~~
+
 declare @i int  
 set @i = 1  
 while @i <= 10000  
@@ -294,44 +294,113 @@ end;
 GO
 ```
 
+> Tabela reprezentuje Menu restauracji. Każde danie to zestaw unikalnych cech - nazwy, typu (przystawka, danie główne, deser, napój), ceny (wartość z zakresu 20 - 120, z dokładnością do 2 miejsc po przecinku), oceny w skali 1 - 5 z dokładnością do jednego miejsca po przecinku, oraz czy danie jest wegańskie (1 - danie wegańskie, 0 - nie). W celu przetestowania zapytań zostało wygenerowane w sposób losowy 10000 rekordów.
+
+> Testy zaczniemy od sprawdzenia jak wygląda przykładowe zapytanie bez dodania przez nas dodatkowych indeksów
+
 ```sql
 SELECT * FROM Dishes WHERE dishName Like 'dish 1000'
 ```
 ![[_img/4-1.png | 500]]
 > Koszt 0.0676153
 
+> Możemy zobaczyć, że podczas generowania danych SZBD sam wygenerował klastrowy indeks. Możemy go zobaczyć za pomocą poniższej komendy.
+
+```sql
 select * from sys.indexes
 where object_id = (select object_id from sys.objects where name = 'dishes')
+```
 
 ![[_img/4-2.png | 500]]
 
+> Aby indeks nie wpływał na nasze testy usunęliśmy go. Trzeba było użyć poniższego polecenia, ze względu na nałożone na nim constrainty uniemożliwiające usunięcie za pomocą DROP INDEX.
+
+```sql
 ALTER TABLE dishes DROP CONSTRAINT PK__Dishes__3213E83FBD80821A
+```
+
+> Teraz możemy zauważyć, że indeks nie został użyty. Co ciekawe nie wpłynęło to na całkowity koszt zapytania.
 
 ![[_img/4-3.png | 500]]
 > Koszt 0.0676153
 
-![[_img/4-4.png | 500]]
+> Zacznijmy od dodania indeksu klastrowanego. Z racji tego, że możemy nałożyć tylko jeden taki indeks na całą tabelę, najwięcej sensu będzie miało nałożenie go na pole reprezentujące nazwę dania, z racji tego że potencjalni użytkownicy najczęściej będą wyszukiwać potrawę właśnie po nazwie.
+
+```sql
 CREATE CLUSTERED INDEX index_dish_name ON dishes(dishName)
+```
+
+> Spróbujmy ponownie przetestować zapytanie, które wyszukiwało danie dish 1000.
+
+![[_img/4-4.png | 500]]
 > Koszt 0.0032831
 
+> Możemy zauważyć aż 20-krotne zmniejszenie kosztu zapytania. Spróbujmy jednak rozszerzyć zapytanie i wyszukać wszystkie dania w którego nazwie pojawia się 1. Takich rekordów jest 3440.
+
+```sql
 SELECT * FROM Dishes WHERE dishName Like '%1%'
+```
+
 ![[_img/4-5.png | 500]]
+
+> Możemy zauważyć, że pomimo zastosowania indeksu klastrowego podczas wykonywania tego zapytania i tak zostały odczytane wszystkie kolumny.
 
 ![[_img/4-6.png | 500]]
 
+> DETA nie zwróciła żadnych rekomendacji.
+
+> Kolejnym dodanym przez nas indeksem będzie indeks nieklastrowy nałożony na kilka kolumn. Zdecydowaliśmy się na nałożenie go na kolumny price oraz rating. Była to według nas najbardziej prawdopodobna kombinacja, po której użytkownicy mogliby filtrować potrawy w naszej restauracji.
+
+```sql
 CREATE NONCLUSTERED INDEX index_dish_name ON dishes(price, rating)
+```
 
+> Na początku możemy przetestować indeks za pomocą zapytania, które znajdzie wszystkie potrawy o cenie większej niż 100 i ocenach większych niż 4. Liczba zwracanych rekordów to 468.
+
+```sql
 SELECT * FROM Dishes WHERE price > 100 AND rating > 4
+```
 
+![[_img/4-8.png | 500]]
+![[_img/4-7.png | 500]]
+
+> Możemy zobaczyć, że stworzony przez nas indeks nie został zastosowany. Wynika to prawdopodobnie ze struktury zapytania, gdzie nasz warunek jest zbyt ogólny aby zastosowanie indeksu miało sens. Spróbowaliśmy wymusić użycie tego indeksu w tym zapytaniu.
+
+![[_img/4-9.png | 500]]
+![[_img/4-10.png | 500]]
+
+> Jak widać całkowity koszt zapytania znacząco wzrósł w przypadku wymuszenia użyciu indeksu. Spróbujmy zmienić zadanie i zastosować warunek równości a nie większości w naszym zapytaniu. Sprawia to, że liczba zwracanych rekordów to tylko 6.
+
+![[_img/4-12.png | 500]]
+![[_img/4-11.png | 500]]
+
+> Indeks tym razem został zastowany. DETA ponownie nie zwróciło żadnych rekomendacji, które mogłyby zoptymalizować powyższe zapytania.
+
+> Spróbujmy dodać nieklastrowany indeks filtrowany. Będziemy chcieli znaleźć wszystkie wegańskie dania. Dodatkowo dodamy INCLUDE, aby zwracać tylko nazwę i typ w przypadku wyszukiwania wegańskiego dania.
+
+```sql
 CREATE NONCLUSTERED INDEX index_dish ON dishes(vegan) INCLUDE(dishName, dishType) WHERE vegan = 1
+```
 
+> Przetestowaliśmy 3 możliwe zapytania - w zapytaniu pierwszym spodziewamy się użycia indeksu, podczas gdy w pozostałych dwóch nie
+
+```sql
 SELECT dishName, dishType FROM Dishes WHERE vegan = 1
 SELECT * FROM Dishes WHERE vegan = 1
 SELECT dishName, dishType FROM Dishes WHERE vegan = 0
+```
 
+![[_img/4-13.png | 500]]
+
+> Koszt pierwszego zapytania wyniósł około 2.5 razy mniej niż zapytania drugiego.
+> 
 > 0.0296982
+> 
 > 0.0676153
 
+> DETA tym razem zwróciło dwie rekomendacje. Po pierwsze zaproponowało dodanie dodatkowego indeksu klastrowanego dla wartości określającej czy danie jest wegańskie czy nie. Nie wydaje nam się jednak, żeby wartość ta była aż tak często używana, żeby wprowadzać dla niej indeks klastrowy. Druga rekomendacja polega na usunięciu filtru z indeksu.
+
+![[_img/4-14.png | 500]]
 
 |         |     |     |     |
 | ------- | --- | --- | --- |
