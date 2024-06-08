@@ -146,9 +146,22 @@ FROM dual
 
 
 > Wyniki, zrzut ekranu, komentarz
-
+![alt text](img/image.png)
+Widok prostokąta na tle stanów.
 ```sql
---  ...
+# stany
+SELECT  sdo_util.to_wktgeometry(geom)
+FROM us_states
+
+# prostokąt
+SELECT  sdo_util.to_wktgeometry(
+    sdo_geometry(
+        2003, 8307, null,
+        sdo_elem_info_array (1,1003,3),
+        sdo_ordinate_array ( -117.0, 40.0, -90., 44.0)
+    )
+) g
+FROM dual
 ```
 
 
@@ -167,9 +180,19 @@ Zwróć uwagę na liczbę zwróconych wierszy (16)
 
 
 > Wyniki, zrzut ekranu, komentarz
-
+![alt text](img/image-1.png)
+Funkcja SDO_FILTER zwraca również stany, które nie mają części wspólnej z prostokątem. Operator ten wykonuje tylko podstawową operację filtrowania, odpowiada na pytanie, czy geometria1 może mieć część wspólną z geometrią2. Stany postrzegane są jako prostokąty przez tę metodę.
 ```sql
---  ...
+# stany z częścią wspólną
+SELECT sdo_util.to_wktgeometry(geom) FROM us_states
+WHERE sdo_filter (
+    geom,
+    sdo_geometry (
+        2003, 8307, null,
+        sdo_elem_info_array (1,1003,3),
+        sdo_ordinate_array ( -117.0, 40.0, -90., 44.0)
+    )
+) = 'TRUE'
 ```
 
 
@@ -190,9 +213,17 @@ Pokaż wynik na mapie
 
 
 > Wyniki, zrzut ekranu, komentarz
-
+![alt text](img/image-2.png)
+SDO_ANYINTERACT sprawdza, czy jakiekolwiek geometrie w tabeli mają relację topologiczną ANYINTERACT z określoną geometrią. Jest to równoważne określeniu operatora SDO_RELATE z "mask=ANYINTERACT". SDO_RELATE z tą maską odpowiada na pytanie, czy geometria1 posiada część wspólną z geometrią2. Pod uwagę brane są stany które rzeczywiście mają część wspólną z prostokątem, dlatego liczba zwracanych stanów jest mniejsza.
 ```sql
---  ...
+SELECT sdo_util.to_wktgeometry(geom) FROM us_states
+WHERE sdo_anyinteract (
+    geom,
+    sdo_geometry (2003, 8307, null,
+        sdo_elem_info_array (1,1003,3),
+        sdo_ordinate_array ( -117.0, 40.0, -90., 44.0)
+    )
+) = 'TRUE'
 ```
 
 # Zadanie 3
@@ -300,10 +331,17 @@ W przypadku wykorzystywania narzędzia SQL Developer, w celu wizualizacji danych
 
 
 > Wyniki, zrzut ekranu, komentarz
+INSIDE+COVEREDBY
+![alt text](img/image-3.png)
+> INSIDE
+![alt text](img/image-4.png)
+> COVEREDBY 
+![alt text](img/image-5.png)
+> Wizualizacja masek:
+> ![alt text](img/image-6.png)
+> W operatorze SDO_RELATE wiele masek można ze sobą łączyć za pomocą znaku +, który jest odpowiednikiem użycia operacji logicznej OR.
+> 
 
-```sql
---  ...
-```
 
 # Zadanie 5
 
@@ -535,34 +573,152 @@ AND sdo_nn(c.location, i.geom, 'sdo_num_res=5') = 'TRUE';
 ```
 
 >Wyniki, zrzut ekranu, komentarz
+![alt text](img/image-7.png)
+![alt text](img/image-8.png)
 
-```sql
---  ...
-```
-
-
-Dodatkowo:
 
 a)     Znajdz kilka miast najbliższych rzece Mississippi
-
-b)    Znajdz 3 miasta najbliżej Nowego Jorku
-
-c)     Znajdz kilka jednostek administracyjnych (us_counties) z których jest najbliżej do Nowego Jorku
-
-d)    Znajdz 5 najbliższych miast od drogi  'I170', podaj odległość do tych miast
-
-e)    Znajdz 5 najbliższych dużych miast (o populacji powyżej 300 tys) od drogi  'I170'
-
-f)      Itp. (własne przykłady)
-
-
 > Wyniki, zrzut ekranu, komentarz
-> (dla każdego z podpunktów)
+![alt text](img/image-9.png)
+![alt text](img/image-10.png)
 
 ```sql
---  ...
+SELECT sdo_util.to_wktgeometry(c.location)
+FROM us_rivers r, us_cities c 
+WHERE r.Name = 'Mississippi'
+AND sdo_nn(c.location, r.geom, 'sdo_num_res=5') = 'TRUE'
 ```
 
+
+b)    Znajdz 3 miasta najbliżej Nowego Jorku
+> Wyniki, zrzut ekranu, komentarz
+![alt text](img/image-11.png)
+![alt text](img/image-13.png)
+W zapytaniu są 4 najbliższe wyszukania, gdyż jednym z nich będzie Nowy Jork, który następnie zostanie usunięty ze zbioru wynikowego.
+```sql
+SELECT sdo_util.to_wktgeometry(c.location) FROM us_cities c
+WHERE sdo_nn(
+    c.location, 
+    (SELECT location FROM us_cities WHERE city = 'New York'), 
+    'sdo_num_res=4'
+) = 'TRUE'
+AND c.City != 'New York'
+```
+
+
+c)     Znajdz kilka jednostek administracyjnych (us_counties) z których jest najbliżej do Nowego Jorku
+> Wyniki, zrzut ekranu, komentarz
+![alt text](img/image-14.png)
+![alt text](img/image-15.png)
+```sql
+SELECT sdo_util.to_wktgeometry(co.geom)
+FROM us_counties co
+WHERE sdo_nn(
+    co.geom, 
+    (SELECT location FROM us_cities WHERE city = 'New York'), 
+    'sdo_num_res=10'
+) = 'TRUE'
+```
+
+
+d)    Znajdz 5 najbliższych miast od drogi  'I170', podaj odległość do tych miast
+> Wyniki, zrzut ekranu, komentarz
+![alt text](img/image-16.png)
+![alt text](img/image-19.png)
+![alt text](img/image-21.png)
+
+Zapytanie do wizualizacji
+```sql
+SELECT sdo_util.to_wktgeometry(c.location)
+FROM us_cities c, us_interstates i
+WHERE i.interstate = 'I170'
+AND sdo_nn(c.location, i.geom, 'sdo_num_res=5') = 'TRUE'
+```
+
+Zapytanie do pomiaru odległości
+```sql
+SELECT 
+    pp.city, 
+    pp.location,
+    SDO_GEOM.SDO_DISTANCE(pp.location, i.geom, 0.005, 'unit=kilometer') AS distance
+FROM us_cities pp, us_interstates i
+WHERE i.interstate = 'I170'
+AND SDO_NN(pp.location, i.geom, 'sdo_num_res=5') = 'TRUE'
+```
+
+Alternatywne zapytanie do pomiaru odległości
+```sql
+SELECT 
+    pp.city, 
+    pp.location,
+    mdsys.SDO_NN_DISTANCE(1) AS distance
+FROM us_cities pp, us_interstates i
+WHERE i.interstate = 'I170'
+AND SDO_NN(pp.location, i.geom, 'sdo_num_res=5', 1) = 'TRUE'
+```
+> Do pomiaru odległości można użyć operacji SDO_GEOM.SDO_DISTANCE lub mdsys.SDO_NN_DISTANCE
+
+
+
+e)    Znajdz 5 najbliższych dużych miast (o populacji powyżej 300 tys) od drogi  'I170'
+> Wyniki, zrzut ekranu, komentarz
+![alt text](img/image-18.png)
+![alt text](img/image-20.png)
+
+Zapytanie do wizualizacji
+```sql
+SELECT sdo_util.to_wktgeometry(c.location)
+FROM (SELECT * 
+    FROM us_cities 
+    WHERE pop90 > 300000
+    ) c, us_interstates i
+WHERE i.interstate = 'I170'
+ORDER BY SDO_GEOM.SDO_DISTANCE(c.location, i.geom, 0.5, 'unit=kilometer')
+FETCH FIRST 5 ROWS ONLY
+```
+
+Zapytanie do pomiaru odległości
+```sql
+SELECT c.city, c.pop90, SDO_GEOM.SDO_DISTANCE(c.location, i.geom, 0.5, 'unit=kilometer') as distance
+FROM us_cities c, us_interstates i
+WHERE i.interstate = 'I170'
+AND c.pop90 > 300000
+ORDER BY distance
+FETCH FIRST 5 ROWS ONLY
+```
+
+f)      Itp. (własne przykłady)
+> Parki o powierzchni większej niż 1000 km2 oraz w odległości mniejszej niż 500 km od Nowego Jorku
+![alt text](img/image-22.png)
+```sql
+SELECT sdo_util.to_wktgeometry(p.geom)
+FROM us_parks p
+WHERE SDO_GEOM.SDO_AREA(p.geom, 0.005) / 1e6 > 1000
+AND SDO_WITHIN_DISTANCE(
+  p.geom, 
+  (SELECT location FROM US_CITIES WHERE city = 'New York'), 
+  'distance=500 unit=km'
+) = 'TRUE'
+```
+
+> Dwa miasta najbliższe przecięciu się dróg I66 oraz I495
+> ![alt text](img/image-23.png)
+```sql
+WITH intersection AS (
+  SELECT SDO_GEOM.SDO_INTERSECTION(r1.geom, r2.geom, 0.005) AS geom
+  FROM us_interstates r1, us_interstates r2
+  WHERE r1.interstate = 'I66'
+  AND r2.interstate = 'I495'
+  AND SDO_GEOM.SDO_INTERSECTION(r1.geom, r2.geom, 0.005) IS NOT NULL
+)
+SELECT sdo_util.to_wktgeometry(c.location), c.city
+FROM us_cities c
+WHERE SDO_NN(c.location, (SELECT geom FROM intersection), 'sdo_num_res=2') = 'TRUE'
+```
+
+> SDO_NN (Nearest Neighbor) jest używany do znajdowania najbliższych obiektów względem określonej geometrii. Umożliwia określenie liczby najbliższych obiektów do zwrócenia (sdo_num_res).
+> SDO_NN_DISTANCE rozszerza funkcjonalność SDO_NN o dodatkowy atrybut zwracający odległość do najbliższych sąsiadów.
+> SDO_WITHIN_DISTANCE znajduje wszystkie obiekty, które znajdują się w określonej odległości od zadanej geometrii.
 
 # Zadanie 7
 
@@ -823,22 +979,82 @@ Wykonaj kilka własnych przykładów/analiz
 
 
 >Wyniki, zrzut ekranu, komentarz
+Wyznaczenie w którym stanie rzeka Missouri ma największą długość i zaznaczenie tego odcinka na mapie.
+![alt text](img/image-24.png)
+```sql
+WITH river_geom AS (
+  SELECT geom
+  FROM us_rivers
+  WHERE Name = 'Missouri'
+),
+intersection AS (
+  SELECT s.state,
+         SDO_GEOM.SDO_INTERSECTION(s.geom, r.geom, 0.005) AS common
+  FROM us_states s, river_geom r
+  WHERE SDO_GEOM.SDO_INTERSECTION(s.geom, r.geom, 0.005) IS NOT NULL
+),
+lengths AS (
+  SELECT state,
+         SDO_GEOM.SDO_LENGTH(common, 0.005) AS length,
+         common
+  FROM intersection
+)
+SELECT state, sdo_util.to_wktgeometry(common)
+FROM lengths
+ORDER BY length DESC
+FETCH FIRST 1 ROWS ONLY
+```
+
+> Wyznaczenie które stany, większe niż 50000 km2, mają największy stosunek długości granicy do powierzchni i zaznaczenie tych stanów na mapie.
+![alt text](img/image-25.png)
 
 ```sql
---  ...
+WITH state_border_info AS (
+  SELECT state,
+         SDO_GEOM.SDO_LENGTH(geom, 0.005) AS border_length,
+         SDO_GEOM.SDO_AREA(geom, 0.005) AS area,
+         geom
+  FROM us_states
+  WHERE SDO_GEOM.SDO_AREA(geom, 0.005, 'unit=SQ_KM') >= 50000
+)
+SELECT state, border_length / area AS border_to_area_ratio, sdo_util.to_wktgeometry(geom)
+FROM state_border_info
+ORDER BY border_to_area_ratio DESC
+FETCH FIRST 5 ROWS ONLY
 ```
+
+> Zapytanie o miasta, których centrum leży mniej niż kilometr od drogi międzystanowej
+![alt text](img/image-26.png)
+
+> Zapytanie o miasta:
+```sql
+WITH t AS (
+  SELECT DISTINCT c.city AS city
+  FROM us_cities c
+  JOIN us_interstates r ON SDO_WITHIN_DISTANCE(c.location, r.geom, 'distance=1 unit=kilometer') = 'TRUE'
+)
+SELECT c.city, sdo_util.to_wktgeometry(c.location)
+FROM us_cities c
+JOIN t ON c.city = t.city
+```
+> Wizualizacja:
+```sql
+SELECT sdo_util.to_wktgeometry(SDO_GEOM.SDO_BUFFER(geom, 1, 0.005, 'unit=kilometer'))
+FROM us_interstates
+```
+
 
 Punktacja
 
-|       |     |
-| ----- | --- |
-| zad   | pkt |
-| 1     | 0,5 |
-| 2     | 1   |
-| 3     | 1   |
-| 4     | 1   |
-| 5     | 3   |
-| 6     | 3   |
-| 7     | 6   |
-| 8     | 4   |
-| razem | 20  |
+|   |   |
+|---|---|
+|zad|pkt|
+|1|0,5|
+|2|1|
+|3|1|
+|4|1|
+|5|3|
+|6|3|
+|7|6|
+|8|4|
+|razem|20|
